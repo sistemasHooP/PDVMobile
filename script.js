@@ -50,9 +50,21 @@ async function apiCall(action, method = 'GET', bodyData = null) {
 
   try {
     const response = await fetch(url, options);
-    const json = await response.json();
+    const text = await response.text();
+    let json;
     
-    // Verifica se o backend retornou erro
+    try {
+        json = JSON.parse(text);
+    } catch (e) {
+        console.error("ERRO CRÍTICO NA API. Resposta não é JSON:", text);
+        // Tenta extrair erro se for HTML de erro do Google
+        if (text.includes("Google Drive - Page Not Found")) {
+             throw new Error("API não encontrada. Verifique a URL do Script.");
+        }
+        throw new Error("Erro na comunicação com o servidor. Verifique o console para detalhes.");
+    }
+    
+    // Verifica se o backend retornou erro lógico
     if (json.error) throw new Error(json.error);
     
     return json;
