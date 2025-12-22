@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+    <meta name="theme-color" content="#1e293b">
+    <title>PDV Mobile</title>
+
+    <!-- PWA Config -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2331/2331966.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2331/2331966.png">
+
+    <!-- Ícones e Fontes -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Bibliotecas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  </head>
+  <body>
+
+    <!-- 1. TELA DE LOGIN MOBILE -->
+    <div id="loginScreen" class="full-screen-flex">
+        <div class="login-box">
+            <div class="logo-circle">
+                <img id="loginLogoImg" src="" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                <i id="loginLogoIcon" class="material-icons-round">qr_code_scanner</i>
+            </div>
+            
+            <h2 id="loginAppName">PDV Mobile</h2>
+            <p>Acesso Vendedor</p>
+            
+            <form onsubmit="fazerLogin(event)">
+                <div class="input-material">
+                    <i class="material-icons-round">person</i>
+                    <input type="text" id="loginUser" name="username" placeholder="Usuário" autocomplete="username" required>
+                </div>
+                
+                <div class="input-material">
+                    <i class="material-icons-round">lock</i>
+                    <input type="password" id="loginPass" name="password" placeholder="Senha" autocomplete="current-password" required>
+                </div>
+
+                <div style="display:flex; align-items:center; width:100%; margin-bottom:20px; color:var(--text-muted); font-size:0.9rem; justify-content: flex-start; padding-left: 5px;">
+                    <input type="checkbox" id="chkKeepLogin" style="width:20px; height:20px; margin-right:10px; accent-color:var(--primary);">
+                    <label for="chkKeepLogin">Manter conectado</label>
+                </div>
+
+                <button type="submit" class="btn-primary-mobile">
+                    ENTRAR
+                </button>
+            </form>
+
+            <div style="margin-top: 30px; font-size: 0.75rem; color: var(--text-muted); opacity: 0.5; letter-spacing: 1px; text-transform: uppercase;">
+                Desenvolvedor Thiego Pereira
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. APP PRINCIPAL -->
+    <div id="appScreen" style="display:none;">
+        
+        <!-- MENU LATERAL (SIDEBAR) -->
+        <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMenu()"></div>
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-sidebar-info">
+                    <i class="material-icons-round">account_circle</i>
+                    <div style="display:flex; flex-direction:column;">
+                        <span id="userNameSidebar" style="font-weight:700; font-size:1.1rem;">Usuário</span>
+                        <span style="font-size:0.8rem; opacity:0.7;">Vendedor</span>
+                    </div>
+                </div>
+                <button class="btn-icon-top" onclick="toggleMenu()"><i class="material-icons-round">close</i></button>
+            </div>
+            <div class="sidebar-menu">
+                <button onclick="mudarAba('vender'); toggleMenu()" class="menu-item active"><i class="material-icons-round">storefront</i> Vender</button>
+                <button onclick="mudarAba('historico'); toggleMenu()" class="menu-item"><i class="material-icons-round">history</i> Histórico Vendas</button>
+                <button onclick="mudarAba('clientes'); toggleMenu()" class="menu-item"><i class="material-icons-round">people</i> Clientes & Fiados</button>
+                <button onclick="mudarAba('financeiro'); toggleMenu()" class="menu-item"><i class="material-icons-round">attach_money</i> Financeiro Dia</button>
+                <button onclick="mudarAba('estoque'); toggleMenu()" class="menu-item"><i class="material-icons-round">inventory</i> Gestão Estoque</button>
+                <button onclick="mudarAba('cadastrar'); toggleMenu()" class="menu-item"><i class="material-icons-round">add_circle</i> Cadastrar Produto</button>
+                <div class="divider"></div>
+                <button onclick="mudarAba('usuarios'); toggleMenu()" class="menu-item"><i class="material-icons-round">manage_accounts</i> Usuários</button>
+                <button onclick="mudarAba('config'); toggleMenu()" class="menu-item"><i class="material-icons-round">settings</i> Configurações</button>
+                <button onclick="logout()" class="menu-item text-danger"><i class="material-icons-round">logout</i> Sair</button>
+            </div>
+        </div>
+
+        <!-- Topo -->
+        <div class="mobile-top-bar">
+            <button class="btn-icon-top" onclick="toggleMenu()" style="color:var(--text-main); margin-right:10px;">
+                <i class="material-icons-round">menu</i>
+            </button>
+            <div class="app-title" id="appHeaderName" style="flex:1;">PDV <span class="highlight">GO</span></div>
+        </div>
+
+        <!-- Área de Conteúdo -->
+        <div id="contentArea" class="content-scroll">
+            
+            <!-- ABAS: VENDER (HOME) -->
+            <div id="tab-vender" class="tab-content active">
+                <div class="search-row">
+                    <div class="search-input-box">
+                        <i class="material-icons-round">search</i>
+                        <input type="text" id="buscaProd" placeholder="Buscar produto..." onkeyup="filtrarProdutos(this.value)">
+                    </div>
+                    <button class="btn-scan" onclick="abrirScanner('venda')">
+                        <i class="material-icons-round">qr_code_scanner</i>
+                    </button>
+                </div>
+                <!-- Filtro Categorias Rápido -->
+                <div id="catChips" class="category-scroll">
+                    <!-- JS popula -->
+                </div>
+                <div id="listaProdutos" class="products-grid">
+                    <div class="loading-placeholder"><div class="spinner"></div></div>
+                </div>
+            </div>
+
+            <!-- ABAS: CARRINHO -->
+            <div id="tab-carrinho" class="tab-content">
+                <div class="cart-header-mobile">
+                    <h3>Carrinho (<span id="cartCount">0</span>)</h3>
+                    <button class="btn-text-danger" onclick="limparCarrinho()">Limpar</button>
+                </div>
+                <div id="cartItemsList" class="cart-list-mobile">
+                    <div class="empty-state"><i class="material-icons-round">remove_shopping_cart</i><p>Vazio</p></div>
+                </div>
+                <div class="cart-summary-card">
+                    <div class="summary-row"><span>Total:</span><span id="totalCarrinho" class="total-big">R$ 0,00</span></div>
+                    <div class="client-selector" onclick="abrirSeletorCliente()">
+                        <i class="material-icons-round">person</i>
+                        <span id="clienteAtualNome">Consumidor Final</span>
+                        <i class="material-icons-round chevron">expand_more</i>
+                    </div>
+                    <button class="btn-checkout-mobile" onclick="irParaPagamento()">FINALIZAR VENDA</button>
+                </div>
+            </div>
+
+            <!-- ABAS: HISTÓRICO VENDAS -->
+            <div id="tab-historico" class="tab-content">
+                <h3 style="margin-bottom:15px;">Últimas Vendas</h3>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <button class="chip active" onclick="carregarHistoricoVendas('HOJE')">Hoje</button>
+                    <button class="chip" onclick="carregarHistoricoVendas('TODAS')">Todas</button>
+                </div>
+                <div id="listaHistoricoVendas" class="list-vertical-scroll">
+                    <!-- JS popula -->
+                </div>
+            </div>
+
+            <!-- ABAS: CLIENTES & FIADOS -->
+            <div id="tab-clientes" class="tab-content">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3>Clientes</h3>
+                    <button class="btn-sm-primary" onclick="abrirCadastroCliente()">+ Novo</button>
+                </div>
+                <div class="search-input-box" style="margin-bottom:15px;">
+                    <i class="material-icons-round">search</i>
+                    <input type="text" placeholder="Buscar cliente..." onkeyup="filtrarListaClientes(this.value)">
+                </div>
+                
+                <div id="listaDevedores" class="list-vertical-scroll">
+                    <!-- JS popula -->
+                </div>
+            </div>
+
+            <!-- ABAS: FINANCEIRO -->
+            <div id="tab-financeiro" class="tab-content">
+                <h3 style="margin-bottom:20px;">Resumo do Dia</h3>
+                
+                <div class="dash-card">
+                    <div class="dash-icon" style="background:rgba(6,182,212,0.2); color:var(--primary);"><i class="material-icons-round">point_of_sale</i></div>
+                    <div class="dash-info">
+                        <span>Vendas Hoje</span>
+                        <strong id="dashVendasHoje">R$ 0,00</strong>
+                    </div>
+                </div>
+
+                <div class="dash-card">
+                    <div class="dash-icon" style="background:rgba(239,68,68,0.2); color:var(--danger);"><i class="material-icons-round">money_off</i></div>
+                    <div class="dash-info">
+                        <span>A Receber (Fiados)</span>
+                        <strong id="dashFiados">R$ 0,00</strong>
+                    </div>
+                </div>
+
+                <div class="dash-card" style="margin-top:20px;">
+                    <div class="dash-info" style="width:100%;">
+                        <span style="display:flex; justify-content:space-between;">Status Caixa <span id="dashStatusCaixa">FECHADO</span></span>
+                    </div>
+                </div>
+                
+                <button class="btn-primary-mobile" style="margin-top:20px;" onclick="atualizarFinanceiro()">Atualizar Dados</button>
+            </div>
+
+            <!-- ABAS: USUÁRIOS -->
+            <div id="tab-usuarios" class="tab-content">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3>Usuários</h3>
+                    <button class="btn-sm-primary" onclick="abrirModalUsuario()">+ Novo</button>
+                </div>
+                <div id="listaUsuarios" class="list-vertical-scroll">
+                    <!-- JS popula -->
+                </div>
+            </div>
+
+            <!-- ABAS: CONFIGURAÇÕES -->
+            <div id="tab-config" class="tab-content">
+                <h3>Configurações</h3>
+                <form id="formConfig" onsubmit="salvarConfiguracoes(event)">
+                    <div class="input-material"><label>Nome Loja</label><input type="text" id="cfgNome"></div>
+                    <div class="input-material"><label>Logo URL</label><input type="text" id="cfgLogo"></div>
+                    <div class="input-material"><label>Chave Pix</label><input type="text" id="cfgPix"></div>
+                    <div class="input-material"><label>CNPJ</label><input type="text" id="cfgCnpj"></div>
+                    <div class="input-material"><label>Endereço</label><input type="text" id="cfgEnd"></div>
+                    <div class="input-material"><label>Telefone</label><input type="text" id="cfgTel"></div>
+                    <div class="input-material"><label>Msg Rodapé</label><input type="text" id="cfgMsg"></div>
+                    <button type="submit" class="btn-primary-mobile">SALVAR TUDO</button>
+                </form>
+            </div>
+
+            <!-- ABAS: CADASTRAR -->
+            <div id="tab-cadastrar" class="tab-content">
+                <h3 style="margin-bottom:15px;">Novo Produto</h3>
+                <form id="formCadastroMobile" onsubmit="salvarProdutoMobileFront(event)">
+                    <div class="input-material">
+                        <i class="material-icons-round">inventory_2</i>
+                        <input type="text" id="cadNome" placeholder="Nome do Produto" required>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div class="input-material">
+                            <i class="material-icons-round">attach_money</i>
+                            <input type="number" id="cadPreco" placeholder="Preço" step="0.01" required>
+                        </div>
+                        <div class="input-material">
+                            <i class="material-icons-round">local_offer</i>
+                            <input type="number" id="cadPromo" placeholder="Promoção" step="0.01">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px;">
+                        <div class="input-material">
+                            <i class="material-icons-round">tag</i>
+                            <input type="number" id="cadEstoque" placeholder="Qtd" required>
+                        </div>
+                        <div class="input-material" style="position:relative;">
+                            <i class="material-icons-round">category</i>
+                            <select id="cadCategoria" style="width:100%; padding:15px 15px 15px 45px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
+                                <option value="Geral">Geral</option>
+                            </select>
+                            <i class="material-icons-round" style="right:15px; left:auto; pointer-events:none;">expand_more</i>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
+                        <div class="input-material" style="flex:1; margin-bottom:0;">
+                            <i class="material-icons-round">qr_code</i>
+                            <input type="text" id="cadCodigo" placeholder="Cód. Barras (Opcional)">
+                        </div>
+                        <button type="button" class="btn-scan" onclick="abrirScanner('cadastro')">
+                            <i class="material-icons-round">photo_camera</i>
+                        </button>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
+                        <div class="input-material" style="flex:1; margin-bottom:0;">
+                            <i class="material-icons-round">image</i>
+                            <input type="text" id="cadFoto" placeholder="URL da Foto">
+                        </div>
+                        <button type="button" class="btn-scan" onclick="document.getElementById('uplImgMobile').click()">
+                            <i class="material-icons-round">cloud_upload</i>
+                        </button>
+                        <input type="file" id="uplImgMobile" accept="image/*" style="display:none" onchange="uploadImagemMobile(this)">
+                    </div>
+                    <div id="statusUploadMobile" style="font-size:0.8rem; color:var(--secondary); margin-bottom:10px; display:none;">Imagem carregada!</div>
+                    <div class="input-material">
+                        <textarea id="cadDesc" rows="2" placeholder="Descrição..." style="width:100%; padding:15px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; font-family:inherit;"></textarea>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+                        <input type="checkbox" id="cadControla" checked style="width:20px; height:20px; accent-color:var(--primary);">
+                        <label for="cadControla">Controlar Estoque?</label>
+                    </div>
+                    <button type="submit" class="btn-primary-mobile">CADASTRAR PRODUTO</button>
+                </form>
+                <br><br>
+            </div>
+
+            <!-- ABAS: ESTOQUE (GESTÃO) -->
+            <div id="tab-estoque" class="tab-content">
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div class="search-input-box">
+                        <i class="material-icons-round">search</i>
+                        <input type="text" id="buscaEstoqueMobile" placeholder="Buscar estoque..." onkeyup="filtrarEstoqueMobile(this.value)">
+                    </div>
+                    <button class="btn-scan" onclick="abrirHistoricoGeral()">
+                        <i class="material-icons-round">history</i>
+                    </button>
+                </div>
+                <div id="listaEstoqueProdutos" class="products-grid">
+                    <div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>
+                </div>
+                <br><br>
+            </div>
+
+        </div>
+
+        <!-- Navegação Inferior Simplificada -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="mudarAba('vender')">
+                <i class="material-icons-round">storefront</i>
+                <span>Vender</span>
+            </button>
+            
+            <button class="nav-item cart-nav-btn" onclick="mudarAba('carrinho')">
+                <div class="badge-nav" id="badgeCarrinhoTopo" style="display:none">0</div>
+                <i class="material-icons-round">shopping_cart</i>
+                <span>Carrinho</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- === MODAIS === -->
+
+    <!-- Scanner (COM MIRA RETANGULAR) -->
+    <div id="modalScanner" class="modal-overlay">
+        <div class="scanner-box">
+            <div class="scanner-header">
+                <h3 id="tituloScanner">Ler Código</h3>
+                <button onclick="fecharScanner()" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <div id="reader"></div>
+            <!-- MIRA VISUAL -->
+            <div class="scanner-overlay-box">
+                <div class="scanner-laser"></div>
+            </div>
+            <p class="scanner-tip">Posicione o código dentro da caixa</p>
+        </div>
+    </div>
+
+    <!-- Modal Novo Usuário -->
+    <div id="modalUsuario" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-simple">
+                <h3>Dados Usuário</h3>
+                <button onclick="fecharModal('modalUsuario')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <form onsubmit="salvarUsuario(event)">
+                <input type="hidden" id="usuId">
+                <div class="input-material">
+                    <i class="material-icons-round">person</i>
+                    <input type="text" id="usuNome" placeholder="Nome" required>
+                </div>
+                <div class="input-material">
+                    <i class="material-icons-round">badge</i>
+                    <input type="text" id="usuLogin" placeholder="Login" required>
+                </div>
+                <div class="input-material">
+                    <i class="material-icons-round">lock</i>
+                    <input type="text" id="usuSenha" placeholder="Senha" required>
+                </div>
+                <div class="input-material">
+                    <i class="material-icons-round">admin_panel_settings</i>
+                    <select id="usuPerfil" style="width:100%; padding:15px 15px 15px 45px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
+                        <option value="Vendedor">Vendedor</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary-mobile">SALVAR USUÁRIO</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Pagamento Fiado (Baixa) -->
+    <div id="modalBaixaFiado" class="modal-overlay bottom-sheet">
+        <div class="sheet-content">
+            <div class="sheet-header">
+                <h3>Receber Fiado</h3>
+                <button onclick="fecharModal('modalBaixaFiado')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <h4 id="baixaNomeCliente" style="color:var(--primary); margin:0 0 5px 0;">Cliente</h4>
+            <p style="color:var(--danger); margin-bottom:20px;">Dívida Atual: <span id="baixaDividaAtual" style="font-weight:bold;">R$ 0,00</span></p>
+            <input type="hidden" id="baixaIdCliente">
+            
+            <div class="input-material">
+                <i class="material-icons-round">attach_money</i>
+                <input type="number" id="baixaValor" placeholder="Valor a Receber" step="0.01">
+            </div>
+            
+            <p style="margin-bottom:10px; font-size:0.9rem; color:var(--text-muted);">Forma de Recebimento:</p>
+            <div class="pagamento-grid" style="margin-bottom:20px;">
+                <button class="pag-btn selected" id="baixaDinheiro" onclick="selPagBaixa('Dinheiro', this)">Dinheiro</button>
+                <button class="pag-btn" id="baixaPix" onclick="selPagBaixa('Pix', this)">Pix</button>
+                <button class="pag-btn" id="baixaCartao" onclick="selPagBaixa('Cartao', this)">Cartão</button>
+            </div>
+
+            <button class="btn-primary-mobile" onclick="confirmarBaixaFiado()">CONFIRMAR RECEBIMENTO</button>
+            
+            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:10px;">
+                <p style="font-size:0.9rem; color:var(--text-muted);">Últimos Movimentos:</p>
+                <div id="extratoClienteLista" style="max-height:150px; overflow-y:auto; font-size:0.8rem;">
+                    <!-- JS popula -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhe Venda -->
+    <div id="modalDetalheVenda" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-simple">
+                <h3>Detalhes Venda</h3>
+                <button onclick="fecharModal('modalDetalheVenda')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <div id="detalheVendaConteudo" class="list-vertical-scroll">
+                <!-- JS popula -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajuste Estoque + Opções -->
+    <div id="modalAjusteEstoque" class="modal-overlay bottom-sheet">
+        <div class="sheet-content">
+            <div class="sheet-header">
+                <h3>Gerenciar Produto</h3>
+                <button onclick="fecharModal('modalAjusteEstoque')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            
+            <h4 id="ajusteNomeProd" style="color:var(--primary); margin:0 0 15px 0; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:10px;">Produto</h4>
+            <input type="hidden" id="ajusteIdProd">
+            
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:10px;">Ajuste de Quantidade:</p>
+            <div class="pagamento-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:15px;">
+                <button class="pag-btn selected" id="btnEntrada" onclick="setTipoAjuste('ENTRADA')">
+                    <i class="material-icons-round" style="color:var(--secondary)">add_circle</i> Entrada
+                </button>
+                <button class="pag-btn" id="btnSaida" onclick="setTipoAjuste('SAIDA')">
+                    <i class="material-icons-round" style="color:var(--danger)">remove_circle</i> Saída
+                </button>
+            </div>
+
+            <div class="input-material">
+                <i class="material-icons-round">tag</i>
+                <input type="number" id="ajusteQtd" placeholder="Quantidade" inputmode="numeric">
+            </div>
+            
+            <div class="input-material">
+                <i class="material-icons-round">edit</i>
+                <input type="text" id="ajusteMotivo" placeholder="Motivo">
+            </div>
+
+            <button class="btn-primary-mobile confirm-btn" onclick="confirmarAjusteMobile()">
+                CONFIRMAR AJUSTE
+            </button>
+
+            <!-- AÇÕES DE EDIÇÃO E EXCLUSÃO -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:20px;">
+                <button class="btn-primary-mobile" style="background:transparent; border:1px solid var(--primary); color:var(--primary); margin:0;" onclick="abrirEdicaoProduto()">
+                    <i class="material-icons-round" style="vertical-align:middle;">edit</i> Editar
+                </button>
+                <button class="btn-primary-mobile" style="background:rgba(239,68,68,0.1); border:1px solid var(--danger); color:var(--danger); margin:0;" onclick="excluirProdutoConfirmacao()">
+                    <i class="material-icons-round" style="vertical-align:middle;">delete</i> Excluir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Produto -->
+    <div id="modalEditarProduto" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-simple">
+                <h3>Editar Dados</h3>
+                <button onclick="fecharModal('modalEditarProduto')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <div class="list-vertical-scroll" style="padding:5px;">
+                <div class="input-material">
+                    <label style="color:var(--text-muted); font-size:0.8rem;">Nome</label>
+                    <input type="text" id="editNome">
+                </div>
+                <div class="input-material">
+                    <label style="color:var(--text-muted); font-size:0.8rem;">Preço (R$)</label>
+                    <input type="number" id="editPreco" step="0.01">
+                </div>
+                <div class="input-material">
+                    <label style="color:var(--text-muted); font-size:0.8rem;">Promoção (R$)</label>
+                    <input type="number" id="editPromo" step="0.01">
+                </div>
+                <div class="input-material">
+                    <label style="color:var(--text-muted); font-size:0.8rem;">Categoria</label>
+                    <select id="editCategoria" style="width:100%; padding:15px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
+                        <!-- JS preenche -->
+                    </select>
+                </div>
+                <div class="input-material">
+                    <label style="color:var(--text-muted); font-size:0.8rem;">Cód. Barras</label>
+                    <input type="text" id="editCod">
+                </div>
+                <button class="btn-primary-mobile" onclick="salvarEdicaoProduto()">SALVAR ALTERAÇÕES</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Histórico Geral Estoque -->
+    <div id="modalHistoricoGeral" class="modal-overlay">
+        <div class="modal-card" style="height:90%">
+            <div class="modal-header-simple">
+                <h3>Histórico Geral</h3>
+                <button onclick="fecharModal('modalHistoricoGeral')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <div id="listaHistoricoCompleta" class="list-vertical-scroll stock-list-mobile">
+                 <!-- JS popula aqui -->
+            </div>
+            <button id="btnLoadMoreStock" class="btn-primary-mobile" style="background:transparent; border:1px solid var(--border); margin-top:10px;" onclick="carregarMaisEstoque()">
+                Carregar Mais
+            </button>
+        </div>
+    </div>
+
+    <!-- Pagamento -->
+    <div id="modalPagamento" class="modal-overlay bottom-sheet">
+        <div class="sheet-content">
+            <div class="sheet-header">
+                <h3>Pagamento</h3>
+                <button onclick="fecharModal('modalPagamento')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            
+            <div class="total-pagamento-display" id="totalPagamentoDisplay">R$ 0,00</div>
+
+            <!-- Botões de Tipo de Pagamento -->
+            <div class="pagamento-grid">
+                <button class="pag-btn selected" id="payBtnDinheiro" onclick="selecionarPagamento('Dinheiro', this)">
+                    <i class="material-icons-round">attach_money</i> Dinheiro
+                </button>
+                <button class="pag-btn" id="payBtnPix" onclick="selecionarPagamento('Pix', this)">
+                    <i class="material-icons-round">qr_code</i> Pix
+                </button>
+                <button class="pag-btn" id="payBtnCartao" onclick="selecionarPagamento('Cartao', this)">
+                    <i class="material-icons-round">credit_card</i> Cartão
+                </button>
+                <button class="pag-btn" id="payBtnFiado" onclick="selecionarPagamento('Fiado', this)">
+                    <i class="material-icons-round">person</i> Fiado
+                </button>
+            </div>
+
+            <!-- ÁREA DINÂMICA: DINHEIRO (TROCO) -->
+            <div id="areaDinheiro" class="payment-area" style="display:block;">
+                <div class="input-material">
+                    <i class="material-icons-round">payments</i>
+                    <input type="number" id="valRecebidoMobile" placeholder="Valor Recebido" oninput="calcularTrocoMobile()" inputmode="decimal">
+                </div>
+                <div class="troco-display-mobile" id="trocoDisplayMobile" style="text-align:center; margin-bottom:15px; font-weight:bold; color:var(--text-muted);">
+                    Troco: R$ 0,00
+                </div>
+            </div>
+
+            <!-- ÁREA DINÂMICA: PIX (QR CODE) -->
+            <div id="areaPix" class="payment-area" style="display:none; text-align:center; margin-bottom:20px;">
+                <div style="background:#fff; padding:10px; border-radius:10px; display:inline-block;">
+                    <canvas id="qrPixMobile" style="width:200px; height:200px;"></canvas>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-top:10px;">Escaneie para pagar</p>
+            </div>
+
+            <!-- ÁREA DINÂMICA: FIADO (CLIENTE) -->
+            <div id="areaFiado" class="payment-area" style="display:none; margin-bottom:20px;">
+                <div class="client-selector" onclick="abrirSeletorCliente()" style="background:rgba(255,255,255,0.1); border:1px solid var(--primary);">
+                    <i class="material-icons-round" style="color:var(--primary)">person</i>
+                    <span id="nomeClienteFiadoMobile">Consumidor Final</span>
+                    <i class="material-icons-round chevron">edit</i>
+                </div>
+                <p style="color:var(--danger); font-size:0.8rem; margin-top:5px; display:none;" id="avisoFiadoMobile">Selecione um cliente para Fiado!</p>
+            </div>
+
+            <button class="btn-primary-mobile confirm-btn" onclick="confirmarVendaMobile()">
+                CONFIRMAR
+            </button>
+        </div>
+    </div>
+
+    <!-- Clientes (Busca) -->
+    <div id="modalClientes" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-simple">
+                <h3>Cliente</h3>
+                <button onclick="fecharModal('modalClientes')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            
+            <button class="btn-primary-mobile" style="margin-bottom:15px; background:var(--secondary); color:#000;" onclick="abrirCadastroCliente()">
+                <i class="material-icons-round" style="vertical-align:middle; font-size:1.2rem; margin-right:5px;">person_add</i> Novo Cliente
+            </button>
+
+            <div class="search-input-box" style="margin-bottom:10px;">
+                <i class="material-icons-round">search</i>
+                <input type="text" id="buscaClienteMobile" placeholder="Nome/CPF..." onkeyup="buscarClienteAPI(this.value)">
+            </div>
+            <div id="listaClientesBusca" class="list-vertical-scroll">
+                <div class="list-item" onclick="selecionarCliente('','Consumidor Final')">
+                    <div class="icon-box"><i class="material-icons-round">person</i></div>
+                    <div class="info"><strong>Consumidor Final</strong><span>Padrão</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cadastro de Cliente -->
+    <div id="modalCadastroCliente" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-simple">
+                <h3>Novo Cliente</h3>
+                <button onclick="fecharModal('modalCadastroCliente')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            <div class="list-vertical-scroll" style="padding:5px;">
+                <form id="formCadClienteMobile" onsubmit="salvarNovoClienteMobile(event)">
+                    <div class="input-material">
+                        <i class="material-icons-round">person</i>
+                        <input type="text" id="cliNome" placeholder="Nome Completo" required>
+                    </div>
+                    <div class="input-material">
+                        <i class="material-icons-round">badge</i>
+                        <input type="tel" id="cliDoc" placeholder="CPF ou CNPJ">
+                    </div>
+                    <div class="input-material">
+                        <i class="material-icons-round">phone</i>
+                        <input type="tel" id="cliTel" placeholder="Telefone / WhatsApp">
+                    </div>
+                    <div class="input-material">
+                        <i class="material-icons-round">location_on</i>
+                        <input type="text" id="cliEnd" placeholder="Endereço">
+                    </div>
+                    <div class="input-material">
+                        <i class="material-icons-round">attach_money</i>
+                        <input type="number" id="cliLimite" placeholder="Limite Fiado (R$)" step="0.01">
+                    </div>
+                    <button type="submit" class="btn-primary-mobile">SALVAR CLIENTE</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+      // Service Worker Register
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+        .then(function(reg) {
+          console.log('Service Worker Registered');
+        }).catch(function(err) {
+          console.log('SW Register Error: ', err);
+        });
+      }
+    </script>
+  </body>
+</html>
