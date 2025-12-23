@@ -26,6 +26,7 @@
   const CACHE_PRODS_KEY = 'pdv_mobile_prods';
   const USER_KEY = 'pdv_mobile_user';
   const CACHE_CONFIG_KEY = 'pdv_mobile_config';
+  const PENDING_SALES_KEY = 'pdv_vendas_pendentes';
 
   // Variáveis para instalação PWA
   let deferredPrompt;
@@ -84,6 +85,11 @@
           if(btnSidebar) btnSidebar.style.display = 'flex';
       });
 
+      // Listeners de Conexão
+      window.addEventListener('online', atualizarStatusConexao);
+      window.addEventListener('offline', atualizarStatusConexao);
+      atualizarStatusConexao();
+
       // 1. Tenta aplicar config do cache imediatamente (Zero Delay)
       const cachedConfig = localStorage.getItem(CACHE_CONFIG_KEY);
       if (cachedConfig) {
@@ -100,6 +106,82 @@
       // 3. Busca config atualizada em background
       carregarConfiguracoesEmpresa();
   });
+
+  // --- LÓGICA OFFLINE ---
+
+  function atualizarStatusConexao() {
+      const offlineBar = document.getElementById('offlineBar');
+      const indicator = document.getElementById('offlineIndicator');
+      const pendentes = getVendasPendentes();
+
+      if (!navigator.onLine) {
+          if(offlineBar) offlineBar.style.display = 'block';
+      } else {
+          if(offlineBar) offlineBar.style.display = 'none';
+      }
+
+      // Botão de Sync só aparece se tiver vendas pendentes E estiver online
+      if (pendentes.length > 0 && navigator.onLine) {
+          if(indicator) {
+              indicator.style.display = 'flex';
+              document.getElementById('qtdPendentes').innerText = pendentes.length;
+          }
+      } else {
+          if(indicator) indicator.style.display = 'none';
+      }
+  }
+
+  function getVendasPendentes() {
+      const saved = localStorage.getItem(PENDING_SALES_KEY);
+      return saved ? JSON.parse(saved) : [];
+  }
+
+  function salvarVendaOffline(dados) {
+      const pendentes = getVendasPendentes();
+      // Adiciona timestamp para controle
+      dados.timestamp = new Date().toISOString();
+      dados.offline = true;
+      pendentes.push(dados);
+      localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(pendentes));
+      atualizarStatusConexao();
+  }
+
+  async function sincronizarVendas() {
+      const pendentes = getVendasPendentes();
+      if (pendentes.length === 0) return;
+
+      const btnSync = document.querySelector('#offlineIndicator button');
+      const txtOriginal = btnSync.innerHTML;
+      btnSync.innerHTML = '<div class="spinner" style="width:14px; height:14px; border-width:2px; margin:0;"></div> Enviando...';
+      btnSync.disabled = true;
+
+      let sucessos = 0;
+      let erros = 0;
+
+      // Envia uma por uma para garantir
+      for (const venda of pendentes) {
+          try {
+              await apiRequest('processarVendaMobile', venda);
+              sucessos++;
+          } catch (e) {
+              console.error("Erro ao sincronizar venda:", e);
+              erros++;
+          }
+      }
+
+      // Se tudo deu certo, limpa a fila.
+      if (erros === 0) {
+          localStorage.removeItem(PENDING_SALES_KEY);
+          Swal.fire({ icon: 'success', title: 'Sincronizado!', text: `${sucessos} vendas enviadas.` });
+      } else {
+          Swal.fire({ icon: 'warning', title: 'Atenção', text: `${sucessos} enviadas, ${erros} falharam. Tente novamente.` });
+      }
+
+      atualizarStatusConexao();
+      btnSync.innerHTML = txtOriginal;
+      btnSync.disabled = false;
+      carregarHistoricoVendas('HOJE'); // Atualiza a lista visual
+  }
 
   function instalarApp() {
       if (deferredPrompt) {
@@ -119,6 +201,7 @@
   }
 
   function carregarConfiguracoesEmpresa() {
+      if (!navigator.onLine) return; // Não carrega config se offline
       apiRequest('getConfigMobile')
       .then(conf => {
           // O backend já devolve JSON, não precisa parse se não for string
@@ -179,6 +262,7 @@
 
   function fazerLogin(event) {
       if(event) event.preventDefault(); 
+      if (!navigator.onLine) { msgErro("Sem conexão para login."); return; }
       
       const user = document.getElementById('loginUser').value;
       const pass = document.getElementById('loginPass').value;
@@ -222,6 +306,7 @@
       document.getElementById('userNameSidebar').innerText = usuario.nome.split(' ')[0];
       carregarProdutos();
       carregarCategorias(); 
+      atualizarStatusConexao();
   }
 
   // --- NAVEGAÇÃO & MENUS ---
@@ -266,6 +351,20 @@
   // ======================================================
   function carregarProdutos() {
       const cache = localStorage.getItem(CACHE_PRODS_KEY);
+      
+      // Se offline, usa o cache e não tenta a API
+      if (!navigator.onLine) {
+          if (cache) {
+              dbProdutos = JSON.parse(cache);
+              renderizarProdutos(dbProdutos);
+              renderizarListaEstoque(dbProdutos);
+              console.log("Produtos carregados do cache (Offline)");
+          } else {
+              document.getElementById('listaProdutos').innerHTML = '<div class="empty-state"><p>Sem produtos no cache.</p></div>';
+          }
+          return;
+      }
+
       if (cache) { dbProdutos = JSON.parse(cache); renderizarProdutos(dbProdutos); renderizarListaEstoque(dbProdutos); }
       
       apiRequest('getProdutosMobile')
@@ -280,6 +379,7 @@
   }
 
   function carregarCategorias() {
+      if (!navigator.onLine) return; // Não essencial offline
       apiRequest('getCategoriasMobile')
       .then(r => {
           const cats = (typeof r === 'string') ? JSON.parse(r) : r;
@@ -434,6 +534,17 @@
       const total = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
       const dadosVenda = { itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.preco, subtotal: i.preco * i.qtd })), cliente: clienteAtual.id, vendedor: usuario.nome, total: total, pagamento: formaPagamentoSel };
       const btn = document.querySelector('.confirm-btn');
+      
+      // MODO OFFLINE: TENTA API, SE FALHAR SALVA LOCAL
+      if (!navigator.onLine) {
+          salvarVendaOffline(dadosVenda);
+          Swal.fire({ title: 'Salvo Offline!', text: 'Será enviado quando conectar.', icon: 'info', timer: 2000, showConfirmButton: false });
+          carrinho = []; atualizarCarrinhoUI(); fecharModal('modalPagamento'); 
+          selecionarCliente("", "Consumidor Final");
+          mudarAba('vender');
+          return;
+      }
+
       Swal.fire({ title: 'Processando Venda...', text: 'Aguarde um momento', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
       btn.disabled = true;
       
@@ -446,7 +557,16 @@
             btn.disabled = false; carregarProdutos();
       })
       .catch(e => {
-            btn.disabled = false; msgErro(e.message);
+            // Se falhar e for erro de rede (fetch failed), salva offline
+            if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+                salvarVendaOffline(dadosVenda);
+                Swal.fire({ title: 'Salvo Offline!', text: 'Erro de rede. Salvo para envio posterior.', icon: 'info', timer: 2000, showConfirmButton: false });
+                carrinho = []; atualizarCarrinhoUI(); fecharModal('modalPagamento'); 
+                selecionarCliente("", "Consumidor Final");
+                mudarAba('vender');
+            } else {
+                btn.disabled = false; msgErro(e.message);
+            }
       });
   }
 
@@ -455,6 +575,10 @@
   // ======================================================
 
   function carregarHistoricoVendas(filtro) {
+      if (!navigator.onLine) {
+          document.getElementById('listaHistoricoVendas').innerHTML = '<div class="empty-state"><p>Histórico indisponível offline.</p></div>';
+          return;
+      }
       const lista = document.getElementById('listaHistoricoVendas');
       lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
       document.querySelectorAll('#tab-historico .chip').forEach(c => c.classList.remove('active'));
@@ -494,6 +618,7 @@
   }
 
   function carregarUsuarios() {
+      if (!navigator.onLine) return;
       const lista = document.getElementById('listaUsuarios');
       lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
       
@@ -549,6 +674,10 @@
   }
 
   function carregarListaDevedores() {
+      if (!navigator.onLine) {
+          document.getElementById('listaDevedores').innerHTML = '<div class="empty-state"><p>Lista indisponível offline.</p></div>';
+          return;
+      }
       const lista = document.getElementById('listaDevedores');
       lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
       
@@ -626,6 +755,12 @@
   }
 
   function atualizarFinanceiro() {
+      if (!navigator.onLine) {
+          document.getElementById('dashVendasHoje').innerText = '-';
+          document.getElementById('dashFiados').innerText = '-';
+          document.getElementById('dashStatusCaixa').innerText = 'Offline';
+          return;
+      }
       document.getElementById('dashVendasHoje').innerText = '...';
       document.getElementById('dashFiados').innerText = '...';
       
@@ -737,7 +872,7 @@
   function salvarProdutoMobileFront(e) { e.preventDefault(); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; const dados = { prodNome: document.getElementById('cadNome').value, prodPreco: document.getElementById('cadPreco').value, prodPromo: document.getElementById('cadPromo').value, prodEstoque: document.getElementById('cadEstoque').value, prodCat: document.getElementById('cadCategoria').value, prodCod: document.getElementById('cadCodigo').value, prodFoto: document.getElementById('cadFoto').value, prodDesc: document.getElementById('cadDesc').value, prodControlaEstoque: document.getElementById('cadControla').checked }; apiRequest('salvarProdutoMobile', dados).then(r => { Swal.fire({ title: 'Sucesso!', text: 'Produto cadastrado!', icon: 'success', timer: 2000, showConfirmButton: false }); document.getElementById('formCadastroMobile').reset(); document.getElementById('statusUploadMobile').style.display = 'none'; btn.disabled = false; carregarProdutos(); mudarAba('vender'); }).catch(e => { btn.disabled = false; msgErro(e.message); }); }
   function uploadImagemMobile(input) { if (!input.files || !input.files[0]) return; if (!IMGBB_API_KEY || IMGBB_API_KEY.includes("COLE_SUA")) { msgErro("Configure API Key ImgBB!"); return; } const file = input.files[0]; const status = document.getElementById('statusUploadMobile'); const campoUrl = document.getElementById('cadFoto'); status.style.display = 'block'; status.style.color = 'var(--text-muted)'; status.innerText = 'A enviar imagem...'; campoUrl.setAttribute('disabled', true); const formData = new FormData(); formData.append("image", file); fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData }).then(response => response.json()).then(result => { if (result.success) { campoUrl.value = result.data.url; campoUrl.removeAttribute('disabled'); status.style.color = 'var(--secondary)'; status.innerText = 'Imagem carregada!'; } else { throw new Error("Falha upload."); } }).catch(error => { status.style.color = 'var(--danger)'; status.innerText = 'Erro no envio.'; campoUrl.removeAttribute('disabled'); }); }
   function abrirHistoricoGeral() { document.getElementById('modalHistoricoGeral').style.display = 'flex'; carregarHistoricoEstoque(); }
-  function carregarHistoricoEstoque() { const lista = document.getElementById('listaHistoricoCompleta'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>'; estoquePage = 1; document.getElementById('btnLoadMoreStock').style.display = 'none'; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, true); }); }
+  function carregarHistoricoEstoque() { if (!navigator.onLine) return; const lista = document.getElementById('listaHistoricoCompleta'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>'; estoquePage = 1; document.getElementById('btnLoadMoreStock').style.display = 'none'; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, true); }); }
   function carregarMaisEstoque() { estoquePage++; const btn = document.getElementById('btnLoadMoreStock'); btn.disabled = true; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, false); btn.disabled = false; }); }
   function renderizarHistoricoEstoque(lista, reset) { const container = document.getElementById('listaHistoricoCompleta'); if (reset) container.innerHTML = ''; if (lista.length === 0 && reset) { container.innerHTML = '<div class="empty-state"><i class="material-icons-round">history</i><p>Sem histórico</p></div>'; return; } if (lista.length < 20) { document.getElementById('btnLoadMoreStock').style.display = 'none'; } else { document.getElementById('btnLoadMoreStock').style.display = 'block'; } lista.forEach(i => { const cor = i.tipo === 'ENTRADA' ? 'var(--secondary)' : 'var(--danger)'; const icon = i.tipo === 'ENTRADA' ? 'arrow_downward' : 'arrow_upward'; container.innerHTML += `<div class="stock-item-mobile"><div class="st-icon" style="color:${cor}; border-color:${cor}"><i class="material-icons-round">${icon}</i></div><div class="st-info"><div class="st-prod">${i.nome}</div><div class="st-meta">${i.data} • ${i.usuario}</div><div class="st-obs">${i.motivo}</div></div><div class="st-qty" style="color:${cor}">${i.tipo === 'ENTRADA' ? '+' : '-'}${i.qtd}</div></div>`; }); }
 
