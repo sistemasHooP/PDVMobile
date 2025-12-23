@@ -115,6 +115,18 @@
                 <i class="material-icons-round">menu</i>
             </button>
             <div class="app-title" id="appHeaderName" style="flex:1;">PDV <span class="highlight">GO</span></div>
+            
+            <!-- INDICADOR OFFLINE / SYNC -->
+            <div id="offlineIndicator" style="display:none; align-items:center; gap:5px; margin-left:10px;">
+                <button onclick="sincronizarVendas()" class="btn-sm-primary" style="background:#f59e0b; color:#000; border:none; padding:4px 10px; font-size:0.75rem; display:flex; align-items:center; gap:4px; box-shadow:0 0 10px rgba(245,158,11,0.4);">
+                    <i class="material-icons-round" style="font-size:16px;">sync</i> <span id="qtdPendentes">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- BARRA AVISO SEM CONEXÃO -->
+        <div id="offlineBar" style="display:none; background:var(--danger); color:white; text-align:center; font-size:0.75rem; padding:4px; position:fixed; top:var(--header-height); left:0; right:0; z-index:99;">
+            Sem conexão. Modo Offline Ativo.
         </div>
 
         <!-- Área de Conteúdo -->
