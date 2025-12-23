@@ -1,12 +1,12 @@
 :root {
       /* PALETA DE CORES */
-      --bg-deep: #0f172a;       
-      --bg-card: #1e293b;       
-      --primary: #06b6d4;       
+      --bg-deep: #0f172a;        
+      --bg-card: #1e293b;        
+      --primary: #06b6d4;        
       --primary-dark: #0891b2;
-      --secondary: #10b981;     
+      --secondary: #10b981;      
       --danger: #ef4444;        
-      --text-main: #f8fafc;     
+      --text-main: #f8fafc;      
       --text-muted: #94a3b8;    
       --border: rgba(255,255,255,0.1);
       
