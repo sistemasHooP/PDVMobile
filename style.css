@@ -154,7 +154,9 @@
       position: absolute; top: var(--header-height); bottom: var(--nav-height);
       left: 0; right: 0; overflow-y: auto; overflow-x: hidden;
       padding: 15px; scroll-behavior: smooth;
+      scrollbar-width: none; /* Firefox */
   }
+  .content-scroll::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
 
   .tab-content { display: none; padding-bottom: 30px; }
   .tab-content.active { display: block; animation: fadeIn 0.3s; }
@@ -240,7 +242,9 @@
 
   /* BARRA INFERIOR */
   .bottom-nav {
-      height: var(--nav-height); background: #131c31; border-top: 1px solid var(--border);
+      height: var(--nav-height); background: #131c31; 
+      /* REMOVIDO: border-top: 1px solid var(--border); */
+      box-shadow: 0 -1px 10px rgba(0,0,0,0.5); /* Sombra suave no lugar da borda */
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
       display: flex; justify-content: space-around; align-items: center; padding-bottom: 5px;
   }
@@ -261,7 +265,9 @@
   .dash-info strong { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 5px; }
 
   /* LISTAS */
-  .list-vertical-scroll { overflow-y: auto; flex: 1; }
+  .list-vertical-scroll { overflow-y: auto; flex: 1; scrollbar-width: none; }
+  .list-vertical-scroll::-webkit-scrollbar { display: none; }
+  
   .list-item { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
   .list-item:last-child { border: none; }
   .icon-box { width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: var(--primary); }
