@@ -14,6 +14,9 @@
       --nav-height: 70px;
       --header-height: 60px;
       --radius: 16px;
+      
+      /* Variável para o Notch do iPhone */
+      --safe-top: env(safe-area-inset-top, 20px); 
   }
 
   /* RESET GERAL */
@@ -32,6 +35,11 @@
 
   /* CORREÇÃO DO SWEETALERT */
   .swal2-container { z-index: 10000 !important; }
+
+  /* Correção para evitar Zoom no iPhone ao digitar */
+  input, select, textarea {
+      font-size: 16px !important; 
+  }
 
   /* TELA CHEIA (LOGIN) */
   .full-screen-flex {
@@ -102,6 +110,7 @@
       transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 5px 0 25px rgba(0,0,0,0.5); display: flex; flex-direction: column;
       border-right: 1px solid var(--border);
+      padding-top: var(--safe-top); /* Respeita o notch na sidebar tbm */
   }
   .sidebar.active { transform: translateX(0); }
 
@@ -127,11 +136,21 @@
   .menu-item.text-danger i { color: var(--danger); }
   .divider { height: 1px; background: var(--border); margin: 10px 25px; }
 
-  /* HEADER SUPERIOR */
+  /* HEADER SUPERIOR (CORRIGIDO PARA IPHONE) */
   .mobile-top-bar {
-      height: var(--header-height);
+      /* Altura dinâmica para acomodar o notch */
+      height: auto;
+      min-height: var(--header-height);
+      
       display: flex; justify-content: space-between; align-items: center;
-      padding: 0 15px; background: rgba(15, 23, 42, 0.95);
+      
+      /* Padding Safe Area + Espaço Visual */
+      padding-top: max(10px, var(--safe-top)); 
+      padding-bottom: 10px;
+      padding-left: 15px;
+      padding-right: 15px;
+
+      background: rgba(15, 23, 42, 0.95);
       border-bottom: 1px solid var(--border);
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       backdrop-filter: blur(10px);
@@ -149,11 +168,22 @@
       border: 1px solid #131c31;
   }
 
-  /* ÁREA DE CONTEÚDO */
+  /* ÁREA DE CONTEÚDO (CORRIGIDO PARA IPHONE) */
   .content-scroll {
-      position: absolute; top: var(--header-height); bottom: var(--nav-height);
-      left: 0; right: 0; overflow-y: auto; overflow-x: hidden;
-      padding: 15px; scroll-behavior: smooth;
+      position: absolute; 
+      /* Começa no topo absoluto */
+      top: 0; 
+      bottom: var(--nav-height);
+      left: 0; right: 0; 
+      
+      /* Padding compensa o Header + Notch + Espaço extra */
+      padding-top: calc(var(--header-height) + var(--safe-top) + 20px);
+      padding-left: 15px;
+      padding-right: 15px;
+      padding-bottom: 15px;
+
+      overflow-y: auto; overflow-x: hidden;
+      scroll-behavior: smooth;
       scrollbar-width: none; /* Firefox */
   }
   .content-scroll::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
@@ -247,6 +277,9 @@
       box-shadow: 0 -1px 10px rgba(0,0,0,0.5);
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
       display: flex; justify-content: space-around; align-items: center; padding-bottom: 5px;
+      /* Compensar a barra de início do iPhone */
+      padding-bottom: max(5px, env(safe-area-inset-bottom));
+      height: calc(var(--nav-height) + env(safe-area-inset-bottom));
   }
   .nav-item {
       background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -279,7 +312,7 @@
   /* MODAIS */
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
   .bottom-sheet { align-items: flex-end; }
-  .sheet-content { width: 100%; background: var(--bg-card); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px 20px 40px 20px; animation: slideUp 0.3s ease-out; border-top: 1px solid var(--border); }
+  .sheet-content { width: 100%; background: var(--bg-card); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px 20px 40px 20px; animation: slideUp 0.3s ease-out; border-top: 1px solid var(--border); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
   .sheet-header h3 { margin: 0; color: var(--text-main); }
@@ -296,6 +329,7 @@
       padding: 15px; display: flex; justify-content: space-between; 
       color: #fff; background: rgba(0,0,0,0.6); z-index: 20; 
       position: absolute; top: 0; left: 0; right: 0; 
+      padding-top: max(15px, var(--safe-top));
   }
   
   #reader {
@@ -336,6 +370,7 @@
       text-align: center; color: #fff; 
       position: absolute; bottom: 30px; left: 0; right: 0; 
       z-index: 20; font-size: 0.9rem; opacity: 0.9; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      padding-bottom: env(safe-area-inset-bottom);
   }
 
   .loading-placeholder { text-align: center; padding: 40px; color: var(--text-muted); }
