@@ -1,8 +1,7 @@
 // ======================================================
-  // ⚠️ CONFIGURAÇÃO DA API (COLE SUA URL DO GOOGLE AQUI)
+  // ⚠️ CONFIGURAÇÃO DA API
   // ======================================================
   const API_URL = "https://script.google.com/macros/s/AKfycbxJWmub-C26SiGwR2tGahBz3K5OX4GTp0UrC24-7-g69HN2tSDUjKgyCmK4JrO9mQH-/exec"; 
-  // Exemplo: https://script.google.com/macros/s/AKfycbx.../exec
 
   const IMGBB_API_KEY = "fa0265b3bfc740c1eb09a7e4d6ec493a"; 
 
@@ -673,7 +672,7 @@
   function abrirSeletorCliente() { document.getElementById('modalClientes').style.display = 'flex'; document.getElementById('buscaClienteMobile').focus(); }
   function buscarClienteAPI(termo) { if(termo.length < 2) return; apiRequest('buscarClientesMobile', { termo: termo }).then(json => { const lista = (typeof json === 'string') ? JSON.parse(json) : json; const div = document.getElementById('listaClientesBusca'); div.innerHTML = ''; div.innerHTML += `<div class="list-item" onclick="selecionarCliente('','Consumidor Final')"><div class="icon-box"><i class="material-icons-round">person</i></div><div class="info"><strong>Consumidor Final</strong><span>Padrão</span></div></div>`; lista.forEach(c => { div.innerHTML += `<div class="list-item" onclick="selecionarCliente('${c.id}','${c.nome}')"><div class="icon-box"><i class="material-icons-round">account_circle</i></div><div class="info"><strong>${c.nome}</strong><span>${c.cpf}</span></div></div>`; }); }); }
   function selecionarCliente(id, nome) { clienteAtual = { id: id, nome: nome }; document.getElementById('clienteAtualNome').innerText = nome.split(' ')[0]; const elFiado = document.getElementById('nomeClienteFiadoMobile'); if(elFiado) elFiado.innerText = nome.split(' ')[0]; if(id) document.getElementById('avisoFiadoMobile').style.display = 'none'; fecharModal('modalClientes'); }
-  function fecharModal(id) { document.getElementById(id).style.display = 'none'; if(id === 'modalPagamento' || id === 'modalBaixaFiado' || id === 'modalUsuario') document.getElementById(id).classList.remove('active'); }
+  function fecharModal(id) { document.getElementById(id).style.display = 'none'; if(id === 'modalPagamento' || id === 'modalBaixaFiado' || id === 'modalUsuario' || id === 'modalAjusteEstoque' || id === 'modalCatalogo') document.getElementById(id).classList.remove('active'); }
   function msgErro(msg) { Swal.fire({ icon: 'error', title: 'Oops...', text: msg.replace('Error: ', ''), confirmButtonColor: '#06b6d4' }); }
   function msgSucessoToast(msg) { const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true, background: '#1e293b', color: '#fff' }); Toast.fire({ icon: 'success', title: msg }); }
   function crc16(str) { let crc = 0xFFFF; for (let i = 0; i < str.length; i++) { crc ^= str.charCodeAt(i) << 8; for (let j = 0; j < 8; j++) { if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021; else crc = crc << 1; } } return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'); }
@@ -703,3 +702,41 @@
   function carregarHistoricoEstoque() { const lista = document.getElementById('listaHistoricoCompleta'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>'; estoquePage = 1; document.getElementById('btnLoadMoreStock').style.display = 'none'; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, true); }); }
   function carregarMaisEstoque() { estoquePage++; const btn = document.getElementById('btnLoadMoreStock'); btn.disabled = true; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, false); btn.disabled = false; }); }
   function renderizarHistoricoEstoque(lista, reset) { const container = document.getElementById('listaHistoricoCompleta'); if (reset) container.innerHTML = ''; if (lista.length === 0 && reset) { container.innerHTML = '<div class="empty-state"><i class="material-icons-round">history</i><p>Sem histórico</p></div>'; return; } if (lista.length < 20) { document.getElementById('btnLoadMoreStock').style.display = 'none'; } else { document.getElementById('btnLoadMoreStock').style.display = 'block'; } lista.forEach(i => { const cor = i.tipo === 'ENTRADA' ? 'var(--secondary)' : 'var(--danger)'; const icon = i.tipo === 'ENTRADA' ? 'arrow_downward' : 'arrow_upward'; container.innerHTML += `<div class="stock-item-mobile"><div class="st-icon" style="color:${cor}; border-color:${cor}"><i class="material-icons-round">${icon}</i></div><div class="st-info"><div class="st-prod">${i.nome}</div><div class="st-meta">${i.data} • ${i.usuario}</div><div class="st-obs">${i.motivo}</div></div><div class="st-qty" style="color:${cor}">${i.tipo === 'ENTRADA' ? '+' : '-'}${i.qtd}</div></div>`; }); }
+
+  // --- NOVAS FUNÇÕES DO CATÁLOGO ---
+
+  function abrirModalCatalogo() {
+      document.getElementById('modalCatalogo').style.display = 'flex';
+      setTimeout(() => {
+        document.getElementById('modalCatalogo').classList.add('active');
+      }, 10);
+  }
+
+  function copiarLinkCatalogo() {
+      const copyText = document.getElementById("linkCatalogoInput");
+      copyText.select();
+      copyText.setSelectionRange(0, 99999); // Mobile
+      navigator.clipboard.writeText(copyText.value).then(() => {
+          msgSucessoToast("Link copiado!");
+      }).catch(err => {
+          console.error('Erro ao copiar: ', err);
+          // Fallback manual se clipboard API falhar
+          document.execCommand('copy');
+          msgSucessoToast("Link copiado!");
+      });
+  }
+
+  function compartilharNativo() {
+      if (navigator.share) {
+          navigator.share({
+              title: 'Catálogo Digital',
+              text: 'Confira nosso catálogo de produtos:',
+              url: 'https://sistemashoop.github.io/CatalagoRB/'
+          })
+          .then(() => console.log('Successful share'))
+          .catch((error) => console.log('Error sharing', error));
+      } else {
+          // Se não suportar, faz a cópia como fallback
+          copiarLinkCatalogo();
+      }
+  }
