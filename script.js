@@ -23,6 +23,10 @@
   let produtoEmEdicaoId = null; 
   let clienteEmBaixaId = null; 
 
+  // --- NOVAS VARIÁVEIS PARA DESCONTO ---
+  let tipoDesconto = 'money'; // 'money' ou 'percent'
+  let totalComDesconto = 0; // Armazena o total final calculado
+
   const CACHE_PRODS_KEY = 'pdv_mobile_prods';
   const USER_KEY = 'pdv_mobile_user';
   const CACHE_CONFIG_KEY = 'pdv_mobile_config';
@@ -488,9 +492,53 @@
 
   function irParaPagamento() {
       if (carrinho.length === 0) { msgErro("Carrinho vazio!"); return; }
+      
+      // Resetar Desconto
+      tipoDesconto = 'money';
+      document.getElementById('valDesconto').value = '';
+      document.querySelectorAll('.desc-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btnDescMoney').classList.add('active');
+      
+      calcularTotaisComDesconto(); // Recalcula o total inicial
+      
       selecionarPagamento('Dinheiro', document.getElementById('payBtnDinheiro'));
       document.getElementById('modalPagamento').classList.add('active'); 
       document.getElementById('modalPagamento').style.display = 'flex';
+  }
+
+  // --- NOVA LÓGICA DE DESCONTO ---
+
+  function alternarTipoDesconto(tipo) {
+      tipoDesconto = tipo;
+      document.querySelectorAll('.desc-btn').forEach(b => b.classList.remove('active'));
+      if(tipo === 'money') document.getElementById('btnDescMoney').classList.add('active');
+      else document.getElementById('btnDescPercent').classList.add('active');
+      calcularTotaisComDesconto();
+  }
+
+  function calcularTotaisComDesconto() {
+      const subtotal = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+      let descontoInput = parseFloat(document.getElementById('valDesconto').value);
+      if (isNaN(descontoInput) || descontoInput < 0) descontoInput = 0;
+
+      let descontoFinal = 0;
+      if (tipoDesconto === 'money') {
+          descontoFinal = descontoInput;
+      } else {
+          descontoFinal = subtotal * (descontoInput / 100);
+      }
+
+      // Previne desconto maior que total
+      if (descontoFinal > subtotal) descontoFinal = subtotal;
+
+      totalComDesconto = subtotal - descontoFinal;
+
+      document.getElementById('subtotalDisplay').innerText = `Subtotal: ${fmtMoney(subtotal)}`;
+      document.getElementById('totalPagamentoDisplay').innerText = fmtMoney(totalComDesconto);
+      
+      // Se estiver na aba dinheiro, recalcula o troco
+      if(formaPagamentoSel === 'Dinheiro') calcularTrocoMobile();
+      if(formaPagamentoSel === 'Pix') gerarQRPixMobile();
   }
 
   function selecionarPagamento(tipo, el) {
@@ -507,7 +555,9 @@
       let valStr = document.getElementById('valRecebidoMobile').value; 
       valStr = valStr.replace(',', '.');
       const recebido = parseFloat(valStr);
-      const total = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+      // Agora usa totalComDesconto em vez do total bruto
+      const total = totalComDesconto;
+      
       const elTroco = document.getElementById('trocoDisplayMobile');
       if (!recebido || isNaN(recebido)) { elTroco.innerText = 'Troco: R$ 0,00'; elTroco.style.color = 'var(--text-muted)'; return; }
       const troco = recebido - total;
@@ -516,7 +566,7 @@
   }
 
   function gerarQRPixMobile() {
-      const total = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+      const total = totalComDesconto;
       const chave = configLoja.pixKey;
       if (!chave) { msgErro("Chave Pix não configurada na Planilha!"); return; }
       const payload = gerarPayloadPix(chave, total, configLoja.nome || "PDV", "BRASIL", "MBL001");
@@ -531,8 +581,18 @@
 
   function confirmarVendaMobile() {
       if (formaPagamentoSel === 'Fiado' && !clienteAtual.id) { msgErro("Selecione um cliente para Fiado!"); return; }
-      const total = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
-      const dadosVenda = { itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.preco, subtotal: i.preco * i.qtd })), cliente: clienteAtual.id, vendedor: usuario.nome, total: total, pagamento: formaPagamentoSel };
+      const totalBruto = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+      
+      // Envia Total Bruto E Total Líquido (com desconto)
+      const dadosVenda = { 
+          itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.preco, subtotal: i.preco * i.qtd })), 
+          cliente: clienteAtual.id, 
+          vendedor: usuario.nome, 
+          totalBruto: totalBruto, 
+          totalFinal: totalComDesconto, // Envia o valor já com desconto
+          pagamento: formaPagamentoSel 
+      };
+      
       const btn = document.querySelector('.confirm-btn');
       
       // MODO OFFLINE: TENTA API, SE FALHAR SALVA LOCAL
