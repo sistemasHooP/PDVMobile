@@ -549,7 +549,7 @@
         </div>
     </div>
 
-    <!-- Pagamento -->
+    <!-- Pagamento (ATUALIZADO COM DESCONTO) -->
     <div id="modalPagamento" class="modal-overlay bottom-sheet">
         <div class="sheet-content">
             <div class="sheet-header">
@@ -557,7 +557,23 @@
                 <button onclick="fecharModal('modalPagamento')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
             </div>
             
-            <div class="total-pagamento-display" id="totalPagamentoDisplay">R$ 0,00</div>
+            <!-- ÁREA DE DESCONTO -->
+            <div class="discount-section">
+                <div class="discount-toggle">
+                    <button id="btnDescMoney" class="desc-btn active" onclick="alternarTipoDesconto('money')">R$</button>
+                    <button id="btnDescPercent" class="desc-btn" onclick="alternarTipoDesconto('percent')">%</button>
+                </div>
+                <div class="input-material" style="margin-bottom:0;">
+                    <i class="material-icons-round">local_offer</i>
+                    <input type="number" id="valDesconto" placeholder="Desconto" oninput="calcularTotaisComDesconto()" inputmode="decimal">
+                </div>
+            </div>
+
+            <!-- VALORES -->
+            <div class="total-pagamento-display">
+                <small id="subtotalDisplay" style="display:block; font-size:1rem; color:var(--text-muted); font-weight:normal; margin-bottom:5px;">Subtotal: R$ 0,00</small>
+                <span id="totalPagamentoDisplay">R$ 0,00</span>
+            </div>
 
             <!-- Botões de Tipo de Pagamento -->
             <div class="pagamento-grid">
