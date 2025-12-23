@@ -77,6 +77,10 @@
             <div class="sidebar-menu">
                 <button onclick="mudarAba('vender'); toggleMenu()" class="menu-item active"><i class="material-icons-round">storefront</i> Vender</button>
                 <button onclick="mudarAba('historico'); toggleMenu()" class="menu-item"><i class="material-icons-round">history</i> Histórico Vendas</button>
+                
+                <!-- NOVO BOTÃO CATÁLOGO -->
+                <button onclick="abrirModalCatalogo(); toggleMenu()" class="menu-item" style="color:var(--secondary);"><i class="material-icons-round" style="color:var(--secondary);">share</i> Catálogo Digital</button>
+
                 <button onclick="mudarAba('clientes'); toggleMenu()" class="menu-item"><i class="material-icons-round">people</i> Clientes & Fiados</button>
                 <button onclick="mudarAba('financeiro'); toggleMenu()" class="menu-item"><i class="material-icons-round">attach_money</i> Financeiro Dia</button>
                 <button onclick="mudarAba('estoque'); toggleMenu()" class="menu-item"><i class="material-icons-round">inventory</i> Gestão Estoque</button>
@@ -634,6 +638,40 @@
                     <button type="submit" class="btn-primary-mobile">SALVAR CLIENTE</button>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- NOVO MODAL: Catálogo Digital -->
+    <div id="modalCatalogo" class="modal-overlay bottom-sheet">
+        <div class="sheet-content">
+            <div class="sheet-header">
+                <h3>Catálogo Digital</h3>
+                <button onclick="fecharModal('modalCatalogo')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
+            </div>
+            
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="width:80px; height:80px; background:rgba(6,182,212,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; color:var(--primary);">
+                    <i class="material-icons-round" style="font-size:40px;">storefront</i>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.9rem;">Envie este link para seu cliente fazer pedidos online.</p>
+            </div>
+            
+            <div class="input-material" style="display:flex; align-items:center; gap:10px;">
+                <input type="text" id="linkCatalogoInput" value="https://sistemashoop.github.io/CatalagoRB/" readonly style="text-align:center; font-size:0.9rem; color:var(--secondary); font-weight:bold;">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button onclick="copiarLinkCatalogo()" class="btn-primary-mobile" style="margin:0; background:var(--bg-card); border:1px solid var(--border);">
+                    <i class="material-icons-round" style="vertical-align:middle;">content_copy</i> Copiar
+                </button>
+                <button onclick="compartilharNativo()" class="btn-primary-mobile" style="margin:0;">
+                    <i class="material-icons-round" style="vertical-align:middle;">share</i> Enviar
+                </button>
+            </div>
+            
+            <a href="https://sistemashoop.github.io/CatalagoRB/" target="_blank" class="btn-primary-mobile" style="background:transparent; border:1px solid var(--primary); color:var(--primary); margin-top:15px; display:flex; align-items:center; justify-content:center; gap:5px; text-decoration:none;">
+                <i class="material-icons-round">open_in_new</i> Abrir no Navegador
+            </a>
         </div>
     </div>
     
