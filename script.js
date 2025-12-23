@@ -27,6 +27,9 @@
   const USER_KEY = 'pdv_mobile_user';
   const CACHE_CONFIG_KEY = 'pdv_mobile_config';
 
+  // Variáveis para instalação PWA
+  let deferredPrompt;
+
   // ======================================================
   // 🔗 BRIDGE API (SUBSTITUI GOOGLE.SCRIPT.RUN)
   // ======================================================
@@ -63,6 +66,24 @@
   // 2. INICIALIZAÇÃO & LOGIN
   // ======================================================
   document.addEventListener('DOMContentLoaded', () => {
+      // Registrar Service Worker para PWA
+      if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js')
+          .then(() => console.log('Service Worker Registrado'))
+          .catch(err => console.error('Erro SW:', err));
+      }
+
+      // Escutar evento de instalação
+      window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt = e;
+          // Mostra botões de instalar
+          const btnLogin = document.getElementById('btnInstallLogin');
+          const btnSidebar = document.getElementById('btnInstallSidebar');
+          if(btnLogin) btnLogin.style.display = 'block';
+          if(btnSidebar) btnSidebar.style.display = 'flex';
+      });
+
       // 1. Tenta aplicar config do cache imediatamente (Zero Delay)
       const cachedConfig = localStorage.getItem(CACHE_CONFIG_KEY);
       if (cachedConfig) {
@@ -79,6 +100,23 @@
       // 3. Busca config atualizada em background
       carregarConfiguracoesEmpresa();
   });
+
+  function instalarApp() {
+      if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult.outcome === 'accepted') {
+                  console.log('Usuário aceitou instalar');
+                  // Esconde botões
+                  const btnLogin = document.getElementById('btnInstallLogin');
+                  const btnSidebar = document.getElementById('btnInstallSidebar');
+                  if(btnLogin) btnLogin.style.display = 'none';
+                  if(btnSidebar) btnSidebar.style.display = 'none';
+              }
+              deferredPrompt = null;
+          });
+      }
+  }
 
   function carregarConfiguracoesEmpresa() {
       apiRequest('getConfigMobile')
