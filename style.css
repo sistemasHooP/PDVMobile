@@ -1,710 +1,369 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
-    
-    <!-- Configurações PWA e App -->
-    <title>PDV Mobile</title>
-    <meta name="theme-color" content="#0f172a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PDV Mobile">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="logo.png">
-    <link rel="icon" type="image/png" href="logo.png">
+:root {
+      /* PALETA DE CORES */
+      --bg-deep: #0f172a;       
+      --bg-card: #1e293b;       
+      --primary: #06b6d4;       
+      --primary-dark: #0891b2;
+      --secondary: #10b981;     
+      --danger: #ef4444;        
+      --text-main: #f8fafc;     
+      --text-muted: #94a3b8;    
+      --border: rgba(255,255,255,0.1);
+      
+      /* DIMENSÕES UI */
+      --nav-height: 70px;
+      --header-height: 60px;
+      --radius: 16px;
+  }
 
-    <!-- Ícones e Fontes -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  /* RESET GERAL */
+  * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+      margin: 0; padding: 0;
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      overflow: hidden; 
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+  }
 
-    <!-- Bibliotecas Externas -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  /* CORREÇÃO DO SWEETALERT */
+  .swal2-container { z-index: 10000 !important; }
 
-    <!-- Nossos Arquivos Locais -->
-    <link rel="stylesheet" href="style.css">
-  </head>
-  <body>
+  /* TELA CHEIA (LOGIN) */
+  .full-screen-flex {
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      height: 100%; width: 100%; padding: 20px;
+      background: radial-gradient(circle at top, #1e293b, #0f172a);
+  }
 
-    <!-- 1. TELA DE LOGIN MOBILE -->
-    <div id="loginScreen" class="full-screen-flex">
-        <div class="login-box">
-            <div class="logo-circle">
-                <img id="loginLogoImg" src="logo.png" onerror="this.style.display='none'; document.getElementById('loginLogoIcon').style.display='block';" style="display:block; width:100%; height:100%; object-fit:cover;">
-                <i id="loginLogoIcon" class="material-icons-round" style="display:none;">qr_code_scanner</i>
-            </div>
-            
-            <h2 id="loginAppName">PDV Mobile</h2>
-            <p>Acesso Vendedor</p>
-            
-            <form onsubmit="fazerLogin(event)">
-                <div class="input-material">
-                    <i class="material-icons-round">person</i>
-                    <input type="text" id="loginUser" name="username" placeholder="Usuário" autocomplete="username" required>
-                </div>
-                
-                <div class="input-material">
-                    <i class="material-icons-round">lock</i>
-                    <input type="password" id="loginPass" name="password" placeholder="Senha" autocomplete="current-password" required>
-                </div>
+  .login-box { width: 100%; max-width: 320px; text-align: center; }
 
-                <div style="display:flex; align-items:center; width:100%; margin-bottom:20px; color:var(--text-muted); font-size:0.9rem; justify-content: flex-start; padding-left: 5px;">
-                    <input type="checkbox" id="chkKeepLogin" style="width:20px; height:20px; margin-right:10px; accent-color:var(--primary);">
-                    <label for="chkKeepLogin">Manter conectado</label>
-                </div>
+  .logo-circle {
+      width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--primary);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+      box-shadow: 0 0 20px rgba(6,182,212,0.3); background: rgba(6,182,212,0.1);
+      overflow: hidden;
+  }
+  .logo-circle i { font-size: 40px; color: var(--text-main); }
+  .login-box h2 { margin: 0; font-weight: 700; letter-spacing: 1px; color: var(--text-main); }
+  .login-box p { color: var(--text-muted); margin-bottom: 30px; font-size: 0.9rem; }
 
-                <button type="submit" class="btn-primary-mobile">
-                    ENTRAR
-                </button>
-            </form>
+  /* INPUTS */
+  .input-material { position: relative; margin-bottom: 15px; }
+  .input-material i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+  .input-material input, .input-material textarea, .input-material select {
+      width: 100%; padding: 15px 15px 15px 45px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-main); font-size: 1rem;
+      transition: 0.3s; font-family: inherit;
+  }
+  .input-material input:focus, .input-material textarea:focus { border-color: var(--primary); background: rgba(0,0,0,0.2); }
+  .input-material label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.85rem; margin-left: 5px; }
 
-            <!-- Botão de Instalar na Tela de Login -->
-            <button id="btnInstallLogin" class="btn-sm-primary" style="margin-top:20px; display:none; width:100%; background:transparent; color:var(--secondary); border-color:var(--secondary);" onclick="instalarApp()">
-                <i class="material-icons-round" style="vertical-align:middle; margin-right:5px;">download</i> Instalar App
-            </button>
+  /* BOTÕES */
+  .btn-primary-mobile {
+      width: 100%; padding: 15px; border: none; border-radius: var(--radius);
+      background: var(--primary); color: #fff; font-weight: 700; font-size: 1rem;
+      text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+      box-shadow: 0 4px 15px rgba(6,182,212,0.4); margin-top: 10px;
+      transition: transform 0.1s;
+  }
+  .btn-primary-mobile:active { transform: scale(0.98); }
+  .btn-primary-mobile:disabled { opacity: 0.6; filter: grayscale(100%); cursor: wait; }
 
-            <div style="margin-top: 30px; font-size: 0.75rem; color: var(--text-muted); opacity: 0.5; letter-spacing: 1px; text-transform: uppercase;">
-                Sistema PDV Headless
-            </div>
-        </div>
-    </div>
+  .btn-sm-primary {
+      padding: 8px 16px; border: none; border-radius: 8px;
+      background: rgba(6,182,212,0.15); color: var(--primary); 
+      border: 1px solid var(--primary); font-weight: 600; cursor: pointer;
+  }
+  .btn-sm-primary:active { background: var(--primary); color: #fff; }
 
-    <!-- 2. APP PRINCIPAL -->
-    <div id="appScreen" style="display:none;">
-        
-        <!-- MENU LATERAL (SIDEBAR) -->
-        <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMenu()"></div>
-        <div id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <div class="user-sidebar-info">
-                    <i class="material-icons-round">account_circle</i>
-                    <div style="display:flex; flex-direction:column;">
-                        <span id="userNameSidebar" style="font-weight:700; font-size:1.1rem;">Usuário</span>
-                        <span style="font-size:0.8rem; opacity:0.7;">Vendedor</span>
-                    </div>
-                </div>
-                <button class="btn-icon-top" onclick="toggleMenu()"><i class="material-icons-round">close</i></button>
-            </div>
-            <div class="sidebar-menu">
-                <!-- Botão de Instalar no Menu -->
-                <button id="btnInstallSidebar" onclick="instalarApp()" class="menu-item" style="display:none; color:var(--secondary); background:rgba(16,185,129,0.1); margin-bottom:10px;">
-                    <i class="material-icons-round" style="color:var(--secondary);">download_for_offline</i> <b>Instalar Aplicativo</b>
-                </button>
+  .btn-close-modal {
+      background: rgba(255,255,255,0.1); border: none; color: var(--text-main); 
+      width: 36px; height: 36px; border-radius: 50%; 
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+  }
 
-                <button onclick="mudarAba('vender'); toggleMenu()" class="menu-item active"><i class="material-icons-round">storefront</i> Vender</button>
-                <button onclick="mudarAba('historico'); toggleMenu()" class="menu-item"><i class="material-icons-round">history</i> Histórico Vendas</button>
-                
-                <button onclick="abrirModalCatalogo(); toggleMenu()" class="menu-item" style="color:var(--secondary);"><i class="material-icons-round" style="color:var(--secondary);">share</i> Catálogo Digital</button>
+  /* === SIDEBAR (MENU LATERAL) === */
+  .sidebar-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); z-index: 1900; opacity: 0; visibility: hidden;
+      transition: 0.3s; backdrop-filter: blur(3px);
+  }
+  .sidebar-overlay.active { opacity: 1; visibility: visible; }
 
-                <button onclick="mudarAba('clientes'); toggleMenu()" class="menu-item"><i class="material-icons-round">people</i> Clientes & Fiados</button>
-                <button onclick="mudarAba('financeiro'); toggleMenu()" class="menu-item"><i class="material-icons-round">attach_money</i> Financeiro Dia</button>
-                <button onclick="mudarAba('estoque'); toggleMenu()" class="menu-item"><i class="material-icons-round">inventory</i> Gestão Estoque</button>
-                <button onclick="mudarAba('cadastrar'); toggleMenu()" class="menu-item"><i class="material-icons-round">add_circle</i> Cadastrar Produto</button>
-                <div class="divider"></div>
-                <button onclick="mudarAba('usuarios'); toggleMenu()" class="menu-item"><i class="material-icons-round">manage_accounts</i> Usuários</button>
-                <button onclick="mudarAba('config'); toggleMenu()" class="menu-item"><i class="material-icons-round">settings</i> Configurações</button>
-                <button onclick="logout()" class="menu-item text-danger"><i class="material-icons-round">logout</i> Sair</button>
-            </div>
-        </div>
+  .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 280px;
+      background: var(--bg-card); z-index: 2000;
+      transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 5px 0 25px rgba(0,0,0,0.5); display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+  }
+  .sidebar.active { transform: translateX(0); }
 
-        <!-- Topo -->
-        <div class="mobile-top-bar">
-            <button class="btn-icon-top" onclick="toggleMenu()" style="color:var(--text-main); margin-right:10px;">
-                <i class="material-icons-round">menu</i>
-            </button>
-            <div class="app-title" id="appHeaderName" style="flex:1;">PDV <span class="highlight">GO</span></div>
-            
-            <!-- INDICADOR OFFLINE / SYNC -->
-            <div id="offlineIndicator" style="display:none; align-items:center; gap:5px; margin-left:10px;">
-                <button onclick="sincronizarVendas()" class="btn-sm-primary" style="background:#f59e0b; color:#000; border:none; padding:4px 10px; font-size:0.75rem; display:flex; align-items:center; gap:4px; box-shadow:0 0 10px rgba(245,158,11,0.4);">
-                    <i class="material-icons-round" style="font-size:16px;">sync</i> <span id="qtdPendentes">0</span>
-                </button>
-            </div>
-        </div>
+  .sidebar-header {
+      height: 80px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.2);
+  }
+  .user-sidebar-info { display: flex; align-items: center; gap: 15px; color: var(--text-main); }
+  .user-sidebar-info i { font-size: 40px; color: var(--text-muted); }
 
-        <!-- BARRA AVISO SEM CONEXÃO -->
-        <div id="offlineBar" style="display:none; background:var(--danger); color:white; text-align:center; font-size:0.75rem; padding:4px; position:fixed; top:var(--header-height); left:0; right:0; z-index:99;">
-            Sem conexão. Modo Offline Ativo.
-        </div>
+  .sidebar-menu { flex: 1; overflow-y: auto; padding: 20px 0; }
+  .menu-item {
+      display: flex; align-items: center; gap: 15px; width: 100%; padding: 15px 25px;
+      background: none; border: none; color: var(--text-muted); font-size: 1rem;
+      text-align: left; transition: 0.2s;
+  }
+  .menu-item i { font-size: 24px; color: var(--text-muted); }
+  .menu-item:active { background: rgba(255,255,255,0.05); }
+  .menu-item.active { color: var(--primary); background: rgba(6,182,212,0.1); border-right: 3px solid var(--primary); }
+  .menu-item.active i { color: var(--primary); }
+  .menu-item.text-danger { color: var(--danger); }
+  .menu-item.text-danger i { color: var(--danger); }
+  .divider { height: 1px; background: var(--border); margin: 10px 25px; }
 
-        <!-- Área de Conteúdo -->
-        <div id="contentArea" class="content-scroll">
-            
-            <!-- ABAS: VENDER (HOME) -->
-            <div id="tab-vender" class="tab-content active">
-                <div class="search-row">
-                    <div class="search-input-box">
-                        <i class="material-icons-round">search</i>
-                        <input type="text" id="buscaProd" placeholder="Buscar produto..." onkeyup="filtrarProdutos(this.value)">
-                    </div>
-                    <button class="btn-scan" onclick="abrirScanner('venda')">
-                        <i class="material-icons-round">qr_code_scanner</i>
-                    </button>
-                </div>
-                <!-- Filtro Categorias Rápido -->
-                <div id="catChips" class="category-scroll">
-                    <!-- JS popula -->
-                </div>
-                <div id="listaProdutos" class="products-grid">
-                    <div class="loading-placeholder"><div class="spinner"></div></div>
-                </div>
-            </div>
+  /* HEADER SUPERIOR */
+  .mobile-top-bar {
+      height: var(--header-height);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 15px; background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid var(--border);
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(10px);
+  }
+  .app-title { font-weight: 800; font-size: 1.2rem; }
+  .highlight { color: var(--primary); }
+  .btn-icon-top { background: none; border: none; color: var(--text-main); font-size: 1.5rem; padding: 5px; }
+  
+  .badge-nav-top {
+      position: absolute; top: 5px; right: 5px;
+      background: var(--danger); color: #fff;
+      font-size: 0.6rem; font-weight: bold;
+      width: 16px; height: 16px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid #131c31;
+  }
 
-            <!-- ABAS: CARRINHO -->
-            <div id="tab-carrinho" class="tab-content">
-                <div class="cart-header-mobile">
-                    <h3>Carrinho (<span id="cartCount">0</span>)</h3>
-                    <button class="btn-text-danger" onclick="limparCarrinho()">Limpar</button>
-                </div>
-                <div id="cartItemsList" class="cart-list-mobile">
-                    <div class="empty-state"><i class="material-icons-round">remove_shopping_cart</i><p>Vazio</p></div>
-                </div>
-                <div class="cart-summary-card">
-                    <div class="summary-row"><span>Total:</span><span id="totalCarrinho" class="total-big">R$ 0,00</span></div>
-                    <div class="client-selector" onclick="abrirSeletorCliente()">
-                        <i class="material-icons-round">person</i>
-                        <span id="clienteAtualNome">Consumidor Final</span>
-                        <i class="material-icons-round chevron">expand_more</i>
-                    </div>
-                    <button class="btn-checkout-mobile" onclick="irParaPagamento()">FINALIZAR VENDA</button>
-                </div>
-            </div>
+  /* ÁREA DE CONTEÚDO */
+  .content-scroll {
+      position: absolute; top: var(--header-height); bottom: var(--nav-height);
+      left: 0; right: 0; overflow-y: auto; overflow-x: hidden;
+      padding: 15px; scroll-behavior: smooth;
+      scrollbar-width: none; /* Firefox */
+  }
+  .content-scroll::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
 
-            <!-- ABAS: HISTÓRICO VENDAS -->
-            <div id="tab-historico" class="tab-content">
-                <h3 style="margin-bottom:15px;">Últimas Vendas</h3>
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <button class="chip active" onclick="carregarHistoricoVendas('HOJE')">Hoje</button>
-                    <button class="chip" onclick="carregarHistoricoVendas('TODAS')">Todas</button>
-                </div>
-                <div id="listaHistoricoVendas" class="list-vertical-scroll">
-                    <!-- JS popula -->
-                </div>
-            </div>
+  .tab-content { display: none; padding-bottom: 30px; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s; }
 
-            <!-- ABAS: CLIENTES & FIADOS -->
-            <div id="tab-clientes" class="tab-content">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3>Clientes</h3>
-                    <button class="btn-sm-primary" onclick="abrirCadastroCliente()">+ Novo</button>
-                </div>
-                <div class="search-input-box" style="margin-bottom:15px;">
-                    <i class="material-icons-round">search</i>
-                    <input type="text" placeholder="Buscar cliente..." onkeyup="filtrarListaClientes(this.value)">
-                </div>
-                
-                <div id="listaDevedores" class="list-vertical-scroll">
-                    <!-- JS popula -->
-                </div>
-            </div>
+  /* SEARCH & SCAN */
+  .search-row { display: flex; gap: 10px; margin-bottom: 15px; }
+  .search-input-box { flex: 1; position: relative; }
+  .search-input-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+  .search-input-box input {
+      width: 100%; padding: 12px 12px 12px 40px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 50px; color: var(--text-main); font-size: 1rem;
+  }
+  .btn-scan {
+      width: 48px; height: 48px; border-radius: 50%; border: none;
+      background: var(--bg-card); color: var(--primary);
+      border: 1px solid var(--primary); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 10px rgba(6,182,212,0.2);
+  }
 
-            <!-- ABAS: FINANCEIRO -->
-            <div id="tab-financeiro" class="tab-content">
-                <h3 style="margin-bottom:20px;">Resumo do Dia</h3>
-                
-                <div class="dash-card">
-                    <div class="dash-icon" style="background:rgba(6,182,212,0.2); color:var(--primary);"><i class="material-icons-round">point_of_sale</i></div>
-                    <div class="dash-info">
-                        <span>Vendas Hoje</span>
-                        <strong id="dashVendasHoje">R$ 0,00</strong>
-                    </div>
-                </div>
+  /* CATEGORY CHIPS */
+  .category-scroll {
+      display: flex; gap: 10px; overflow-x: auto; padding: 5px 0 15px 0;
+      scrollbar-width: none;
+  }
+  .category-scroll::-webkit-scrollbar { display: none; }
+  
+  .cat-chip {
+      white-space: nowrap; padding: 10px 20px; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.95rem; font-weight: 600; flex-shrink: 0; transition: 0.2s;
+      display: flex; align-items: center; justify-content: center; min-width: 80px;
+  }
+  .cat-chip:active { transform: scale(0.95); }
+  .cat-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 10px rgba(6,182,212,0.3); }
 
-                <div class="dash-card">
-                    <div class="dash-icon" style="background:rgba(239,68,68,0.2); color:var(--danger);"><i class="material-icons-round">money_off</i></div>
-                    <div class="dash-info">
-                        <span>A Receber (Fiados)</span>
-                        <strong id="dashFiados">R$ 0,00</strong>
-                    </div>
-                </div>
+  /* GRID PRODUTOS */
+  .products-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .prod-card-mobile {
+      display: flex; align-items: center; background: var(--bg-card);
+      border-radius: var(--radius); padding: 10px; border: 1px solid var(--border);
+      position: relative; width: 100%; overflow: hidden;
+  }
+  .prod-card-mobile:active { background: rgba(255,255,255,0.05); }
+  .prod-card-mobile.disabled { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
 
-                <div class="dash-card" style="margin-top:20px;">
-                    <div class="dash-info" style="width:100%;">
-                        <span style="display:flex; justify-content:space-between;">Status Caixa <span id="dashStatusCaixa">FECHADO</span></span>
-                    </div>
-                </div>
-                
-                <button class="btn-primary-mobile" style="margin-top:20px;" onclick="atualizarFinanceiro()">Atualizar Dados</button>
-            </div>
+  /* TAGS */
+  .card-badges { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; z-index: 5; }
+  .stock-tag { background: var(--danger); color: #fff; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+  .stock-tag.low { background: #f59e0b; color: #000; }
+  .promo-tag { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; box-shadow: 0 2px 5px rgba(239,68,68,0.4); animation: pulsePromo 2s infinite; }
+  @keyframes pulsePromo { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.9; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
 
-            <!-- ABAS: USUÁRIOS -->
-            <div id="tab-usuarios" class="tab-content">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3>Usuários</h3>
-                    <button class="btn-sm-primary" onclick="abrirModalUsuario()">+ Novo</button>
-                </div>
-                <div id="listaUsuarios" class="list-vertical-scroll">
-                    <!-- JS popula -->
-                </div>
-            </div>
+  .img-box { width: 70px; height: 70px; border-radius: 12px; overflow: hidden; background: #000; flex-shrink: 0; margin-right: 15px; }
+  .img-box img { width: 100%; height: 100%; object-fit: cover; }
+  .info-box { flex: 1; overflow: hidden; min-width: 0; }
+  .p-name { font-weight: 600; margin-bottom: 4px; color: var(--text-main); font-size: 1rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .p-price { font-weight: 700; color: var(--secondary); font-size: 1.15rem; }
 
-            <!-- ABAS: CONFIGURAÇÕES -->
-            <div id="tab-config" class="tab-content">
-                <h3>Configurações</h3>
-                <form id="formConfig" onsubmit="salvarConfiguracoes(event)">
-                    <div class="input-material"><label>Nome Loja</label><input type="text" id="cfgNome"></div>
-                    <div class="input-material"><label>Logo URL</label><input type="text" id="cfgLogo"></div>
-                    <div class="input-material"><label>Chave Pix</label><input type="text" id="cfgPix"></div>
-                    <div class="input-material"><label>CNPJ</label><input type="text" id="cfgCnpj"></div>
-                    <div class="input-material"><label>Endereço</label><input type="text" id="cfgEnd"></div>
-                    <div class="input-material"><label>Telefone</label><input type="text" id="cfgTel"></div>
-                    <div class="input-material"><label>Msg Rodapé</label><input type="text" id="cfgMsg"></div>
-                    <button type="submit" class="btn-primary-mobile">SALVAR TUDO</button>
-                </form>
-            </div>
+  /* CARRINHO */
+  .cart-header-mobile { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+  .btn-text-danger { background: none; border: none; color: var(--danger); font-weight: 600; }
+  .cart-item-mobile { display: flex; align-items: center; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 5px; width: 100%; }
+  .ci-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; margin-right: 10px; background: #000; flex-shrink: 0; }
+  .ci-info { flex: 1; overflow: hidden; min-width: 0; padding-right: 10px; }
+  .ci-name { font-size: 0.9rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-main); }
+  .ci-price { font-size: 0.8rem; color: var(--text-muted); }
+  .ci-sub { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
+  .ci-remove { background: none; border: none; color: var(--danger); padding: 10px; font-size: 1.2rem; flex-shrink: 0; }
 
-            <!-- ABAS: CADASTRAR -->
-            <div id="tab-cadastrar" class="tab-content">
-                <h3 style="margin-bottom:15px;">Novo Produto</h3>
-                <form id="formCadastroMobile" onsubmit="salvarProdutoMobileFront(event)">
-                    <div class="input-material">
-                        <i class="material-icons-round">inventory_2</i>
-                        <input type="text" id="cadNome" placeholder="Nome do Produto" required>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <div class="input-material">
-                            <i class="material-icons-round">attach_money</i>
-                            <input type="number" id="cadPreco" placeholder="Preço" step="0.01" required>
-                        </div>
-                        <div class="input-material">
-                            <i class="material-icons-round">local_offer</i>
-                            <input type="number" id="cadPromo" placeholder="Promoção" step="0.01">
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px;">
-                        <div class="input-material">
-                            <i class="material-icons-round">tag</i>
-                            <input type="number" id="cadEstoque" placeholder="Qtd" required>
-                        </div>
-                        <div class="input-material" style="position:relative;">
-                            <i class="material-icons-round">category</i>
-                            <select id="cadCategoria" style="width:100%; padding:15px 15px 15px 45px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
-                                <option value="Geral">Geral</option>
-                            </select>
-                            <i class="material-icons-round" style="right:15px; left:auto; pointer-events:none;">expand_more</i>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
-                        <div class="input-material" style="flex:1; margin-bottom:0;">
-                            <i class="material-icons-round">qr_code</i>
-                            <input type="text" id="cadCodigo" placeholder="Cód. Barras (Opcional)">
-                        </div>
-                        <button type="button" class="btn-scan" onclick="abrirScanner('cadastro')">
-                            <i class="material-icons-round">photo_camera</i>
-                        </button>
-                    </div>
-                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
-                        <div class="input-material" style="flex:1; margin-bottom:0;">
-                            <i class="material-icons-round">image</i>
-                            <input type="text" id="cadFoto" placeholder="URL da Foto">
-                        </div>
-                        <button type="button" class="btn-scan" onclick="document.getElementById('uplImgMobile').click()">
-                            <i class="material-icons-round">cloud_upload</i>
-                        </button>
-                        <input type="file" id="uplImgMobile" accept="image/*" style="display:none" onchange="uploadImagemMobile(this)">
-                    </div>
-                    <div id="statusUploadMobile" style="font-size:0.8rem; color:var(--secondary); margin-bottom:10px; display:none;">Imagem carregada!</div>
-                    <div class="input-material">
-                        <textarea id="cadDesc" rows="2" placeholder="Descrição..." style="width:100%; padding:15px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; font-family:inherit;"></textarea>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
-                        <input type="checkbox" id="cadControla" checked style="width:20px; height:20px; accent-color:var(--primary);">
-                        <label for="cadControla">Controlar Estoque?</label>
-                    </div>
-                    <button type="submit" class="btn-primary-mobile">CADASTRAR PRODUTO</button>
-                </form>
-                <br><br>
-            </div>
+  /* RESUMO CARRINHO FIXO */
+  .cart-summary-card {
+      position: fixed; bottom: var(--nav-height); left: 0; right: 0;
+      background: rgba(30, 41, 59, 0.98); border-top: 1px solid var(--primary);
+      padding: 15px 15px 30px 15px; z-index: 90; box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+      border-top-left-radius: 20px; border-top-right-radius: 20px;
+  }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .total-big { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+  .client-selector { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted); }
+  .client-selector .chevron { margin-left: auto; }
+  .btn-checkout-mobile { width: 100%; padding: 15px; border: none; border-radius: 50px; background: var(--secondary); color: #000; font-weight: 800; font-size: 1.1rem; box-shadow: 0 0 15px rgba(16,185,129,0.4); }
 
-            <!-- ABAS: ESTOQUE (GESTÃO) -->
-            <div id="tab-estoque" class="tab-content">
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <div class="search-input-box">
-                        <i class="material-icons-round">search</i>
-                        <input type="text" id="buscaEstoqueMobile" placeholder="Buscar estoque..." onkeyup="filtrarEstoqueMobile(this.value)">
-                    </div>
-                    <button class="btn-scan" onclick="abrirHistoricoGeral()">
-                        <i class="material-icons-round">history</i>
-                    </button>
-                </div>
-                <div id="listaEstoqueProdutos" class="products-grid">
-                    <div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>
-                </div>
-                <br><br>
-            </div>
+  /* BARRA INFERIOR */
+  .bottom-nav {
+      height: var(--nav-height); background: #131c31; 
+      /* REMOVIDO: border-top: 1px solid var(--border); */
+      box-shadow: 0 -1px 10px rgba(0,0,0,0.5); /* Sombra suave no lugar da borda */
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-around; align-items: center; padding-bottom: 5px;
+  }
+  .nav-item {
+      background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 0.85rem; width: 100%; position: relative; font-weight: 500;
+  }
+  .nav-item i { font-size: 28px; transition: 0.2s; }
+  .nav-item.active { color: var(--primary); }
+  .nav-item.active i { transform: translateY(-3px); text-shadow: 0 0 15px var(--primary); }
+  .badge-nav { position: absolute; top: -5px; right: 25%; background: var(--danger); color: #fff; font-size: 0.75rem; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #131c31; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
 
-        </div>
+  /* DASHBOARD */
+  .dash-card { background: var(--bg-card); border-radius: var(--radius); padding: 20px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--border); margin-bottom: 15px; }
+  .dash-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+  .dash-info { display: flex; flex-direction: column; }
+  .dash-info span { font-size: 0.9rem; color: var(--text-muted); }
+  .dash-info strong { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 5px; }
 
-        <!-- Navegação Inferior Simplificada -->
-        <div class="bottom-nav">
-            <button class="nav-item active" onclick="mudarAba('vender')">
-                <i class="material-icons-round">storefront</i>
-                <span>Vender</span>
-            </button>
-            
-            <button class="nav-item cart-nav-btn" onclick="mudarAba('carrinho')">
-                <div class="badge-nav" id="badgeCarrinhoTopo" style="display:none">0</div>
-                <i class="material-icons-round">shopping_cart</i>
-                <span>Carrinho</span>
-            </button>
-        </div>
+  /* LISTAS */
+  .list-vertical-scroll { overflow-y: auto; flex: 1; scrollbar-width: none; }
+  .list-vertical-scroll::-webkit-scrollbar { display: none; }
+  
+  .list-item { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border: none; }
+  .icon-box { width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: var(--primary); }
+  .list-item .info { display: flex; flex-direction: column; flex: 1; }
+  .list-item .info span { font-size: 0.8rem; color: var(--text-muted); }
+  .chip { padding: 5px 12px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem; }
+  .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-    </div>
+  /* MODAIS */
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+  .bottom-sheet { align-items: flex-end; }
+  .sheet-content { width: 100%; background: var(--bg-card); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px 20px 40px 20px; animation: slideUp 0.3s ease-out; border-top: 1px solid var(--border); }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .sheet-header h3 { margin: 0; color: var(--text-main); }
+  .modal-card { width: 90%; max-height: 85%; background: var(--bg-card); border-radius: 15px; padding: 20px; display: flex; flex-direction: column; }
+  .modal-header-simple { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
 
-    <!-- === MODAIS === -->
+  /* === SCANNER OTIMIZADO (MIRA RETANGULAR) === */
+  .scanner-box { 
+      width: 100%; height: 100%; background: #000; 
+      display: flex; flex-direction: column; 
+      position: relative; 
+  }
+  .scanner-header { 
+      padding: 15px; display: flex; justify-content: space-between; 
+      color: #fff; background: rgba(0,0,0,0.6); z-index: 20; 
+      position: absolute; top: 0; left: 0; right: 0; 
+  }
+  
+  #reader {
+      width: 100%; height: 100%;
+      flex: 1; overflow: hidden; position: relative; background: #000;
+  }
+  #reader video {
+      object-fit: cover; width: 100% !important; height: 100% !important;
+  }
+  
+  /* A "MIRA" DO SCANNER - AGORA RETANGULAR */
+  .scanner-overlay-box {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;  /* LARGURA MAIOR */
+      height: 120px; /* ALTURA MENOR (Estilo Código de Barras) */
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      border-radius: 10px;
+      box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.6); /* Escurece a volta */
+      z-index: 10;
+  }
+  /* Laser Vermelho */
+  .scanner-laser {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+      animation: scannerLaser 2s infinite ease-in-out;
+  }
+  @keyframes scannerLaser {
+      0% { top: 5%; opacity: 0; }
+      50% { opacity: 1; }
+      100% { top: 95%; opacity: 0; }
+  }
+  
+  .scanner-tip { 
+      text-align: center; color: #fff; 
+      position: absolute; bottom: 30px; left: 0; right: 0; 
+      z-index: 20; font-size: 0.9rem; opacity: 0.9; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
 
-    <!-- Scanner -->
-    <div id="modalScanner" class="modal-overlay">
-        <div class="scanner-box">
-            <div class="scanner-header">
-                <h3 id="tituloScanner">Ler Código</h3>
-                <button onclick="fecharScanner()" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <div id="reader"></div>
-            <!-- MIRA VISUAL -->
-            <div class="scanner-overlay-box">
-                <div class="scanner-laser"></div>
-            </div>
-            <p class="scanner-tip">Posicione o código dentro da caixa</p>
-        </div>
-    </div>
-
-    <!-- Modal Novo Usuário -->
-    <div id="modalUsuario" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header-simple">
-                <h3>Dados Usuário</h3>
-                <button onclick="fecharModal('modalUsuario')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <form onsubmit="salvarUsuario(event)">
-                <input type="hidden" id="usuId">
-                <div class="input-material">
-                    <i class="material-icons-round">person</i>
-                    <input type="text" id="usuNome" placeholder="Nome" required>
-                </div>
-                <div class="input-material">
-                    <i class="material-icons-round">badge</i>
-                    <input type="text" id="usuLogin" placeholder="Login" required>
-                </div>
-                <div class="input-material">
-                    <i class="material-icons-round">lock</i>
-                    <input type="text" id="usuSenha" placeholder="Senha" required>
-                </div>
-                <div class="input-material">
-                    <i class="material-icons-round">admin_panel_settings</i>
-                    <select id="usuPerfil" style="width:100%; padding:15px 15px 15px 45px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
-                        <option value="Vendedor">Vendedor</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn-primary-mobile">SALVAR USUÁRIO</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Pagamento Fiado (Baixa) -->
-    <div id="modalBaixaFiado" class="modal-overlay bottom-sheet">
-        <div class="sheet-content">
-            <div class="sheet-header">
-                <h3>Receber Fiado</h3>
-                <button onclick="fecharModal('modalBaixaFiado')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <h4 id="baixaNomeCliente" style="color:var(--primary); margin:0 0 5px 0;">Cliente</h4>
-            <p style="color:var(--danger); margin-bottom:20px;">Dívida Atual: <span id="baixaDividaAtual" style="font-weight:bold;">R$ 0,00</span></p>
-            <input type="hidden" id="baixaIdCliente">
-            
-            <div class="input-material">
-                <i class="material-icons-round">attach_money</i>
-                <input type="number" id="baixaValor" placeholder="Valor a Receber" step="0.01">
-            </div>
-            
-            <p style="margin-bottom:10px; font-size:0.9rem; color:var(--text-muted);">Forma de Recebimento:</p>
-            <div class="pagamento-grid" style="margin-bottom:20px;">
-                <button class="pag-btn selected" id="baixaDinheiro" onclick="selPagBaixa('Dinheiro', this)">Dinheiro</button>
-                <button class="pag-btn" id="baixaPix" onclick="selPagBaixa('Pix', this)">Pix</button>
-                <button class="pag-btn" id="baixaCartao" onclick="selPagBaixa('Cartao', this)">Cartão</button>
-            </div>
-
-            <button class="btn-primary-mobile" onclick="confirmarBaixaFiado()">CONFIRMAR RECEBIMENTO</button>
-            
-            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:10px;">
-                <p style="font-size:0.9rem; color:var(--text-muted);">Últimos Movimentos:</p>
-                <div id="extratoClienteLista" style="max-height:150px; overflow-y:auto; font-size:0.8rem;">
-                    <!-- JS popula -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Detalhe Venda -->
-    <div id="modalDetalheVenda" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header-simple">
-                <h3>Detalhes Venda</h3>
-                <button onclick="fecharModal('modalDetalheVenda')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <div id="detalheVendaConteudo" class="list-vertical-scroll">
-                <!-- JS popula -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Ajuste Estoque + Opções -->
-    <div id="modalAjusteEstoque" class="modal-overlay bottom-sheet">
-        <div class="sheet-content">
-            <div class="sheet-header">
-                <h3>Gerenciar Produto</h3>
-                <button onclick="fecharModal('modalAjusteEstoque')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            
-            <h4 id="ajusteNomeProd" style="color:var(--primary); margin:0 0 15px 0; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:10px;">Produto</h4>
-            <input type="hidden" id="ajusteIdProd">
-            
-            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:10px;">Ajuste de Quantidade:</p>
-            <div class="pagamento-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:15px;">
-                <button class="pag-btn selected" id="btnEntrada" onclick="setTipoAjuste('ENTRADA')">
-                    <i class="material-icons-round" style="color:var(--secondary)">add_circle</i> Entrada
-                </button>
-                <button class="pag-btn" id="btnSaida" onclick="setTipoAjuste('SAIDA')">
-                    <i class="material-icons-round" style="color:var(--danger)">remove_circle</i> Saída
-                </button>
-            </div>
-
-            <div class="input-material">
-                <i class="material-icons-round">tag</i>
-                <input type="number" id="ajusteQtd" placeholder="Quantidade" inputmode="numeric">
-            </div>
-            
-            <div class="input-material">
-                <i class="material-icons-round">edit</i>
-                <input type="text" id="ajusteMotivo" placeholder="Motivo">
-            </div>
-
-            <button class="btn-primary-mobile confirm-btn" onclick="confirmarAjusteMobile()">
-                CONFIRMAR AJUSTE
-            </button>
-
-            <!-- AÇÕES DE EDIÇÃO E EXCLUSÃO -->
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:20px;">
-                <button class="btn-primary-mobile" style="background:transparent; border:1px solid var(--primary); color:var(--primary); margin:0;" onclick="abrirEdicaoProduto()">
-                    <i class="material-icons-round" style="vertical-align:middle;">edit</i> Editar
-                </button>
-                <button class="btn-primary-mobile" style="background:rgba(239,68,68,0.1); border:1px solid var(--danger); color:var(--danger); margin:0;" onclick="excluirProdutoConfirmacao()">
-                    <i class="material-icons-round" style="vertical-align:middle;">delete</i> Excluir
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Editar Produto -->
-    <div id="modalEditarProduto" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header-simple">
-                <h3>Editar Dados</h3>
-                <button onclick="fecharModal('modalEditarProduto')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <div class="list-vertical-scroll" style="padding:5px;">
-                <div class="input-material">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Nome</label>
-                    <input type="text" id="editNome">
-                </div>
-                <div class="input-material">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Preço (R$)</label>
-                    <input type="number" id="editPreco" step="0.01">
-                </div>
-                <div class="input-material">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Promoção (R$)</label>
-                    <input type="number" id="editPromo" step="0.01">
-                </div>
-                <div class="input-material">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Categoria</label>
-                    <select id="editCategoria" style="width:100%; padding:15px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:#fff; appearance:none;">
-                        <!-- JS preenche -->
-                    </select>
-                </div>
-                <div class="input-material">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Cód. Barras</label>
-                    <input type="text" id="editCod">
-                </div>
-                <button class="btn-primary-mobile" onclick="salvarEdicaoProduto()">SALVAR ALTERAÇÕES</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Histórico Geral Estoque -->
-    <div id="modalHistoricoGeral" class="modal-overlay">
-        <div class="modal-card" style="height:90%">
-            <div class="modal-header-simple">
-                <h3>Histórico Geral</h3>
-                <button onclick="fecharModal('modalHistoricoGeral')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <div id="listaHistoricoCompleta" class="list-vertical-scroll stock-list-mobile">
-                 <!-- JS popula aqui -->
-            </div>
-            <button id="btnLoadMoreStock" class="btn-primary-mobile" style="background:transparent; border:1px solid var(--border); margin-top:10px;" onclick="carregarMaisEstoque()">
-                Carregar Mais
-            </button>
-        </div>
-    </div>
-
-    <!-- Pagamento -->
-    <div id="modalPagamento" class="modal-overlay bottom-sheet">
-        <div class="sheet-content">
-            <div class="sheet-header">
-                <h3>Pagamento</h3>
-                <button onclick="fecharModal('modalPagamento')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            
-            <div class="total-pagamento-display" id="totalPagamentoDisplay">R$ 0,00</div>
-
-            <!-- Botões de Tipo de Pagamento -->
-            <div class="pagamento-grid">
-                <button class="pag-btn selected" id="payBtnDinheiro" onclick="selecionarPagamento('Dinheiro', this)">
-                    <i class="material-icons-round">attach_money</i> Dinheiro
-                </button>
-                <button class="pag-btn" id="payBtnPix" onclick="selecionarPagamento('Pix', this)">
-                    <i class="material-icons-round">qr_code</i> Pix
-                </button>
-                <button class="pag-btn" id="payBtnCartao" onclick="selecionarPagamento('Cartao', this)">
-                    <i class="material-icons-round">credit_card</i> Cartão
-                </button>
-                <button class="pag-btn" id="payBtnFiado" onclick="selecionarPagamento('Fiado', this)">
-                    <i class="material-icons-round">person</i> Fiado
-                </button>
-            </div>
-
-            <!-- ÁREA DINÂMICA: DINHEIRO (TROCO) -->
-            <div id="areaDinheiro" class="payment-area" style="display:block;">
-                <div class="input-material">
-                    <i class="material-icons-round">payments</i>
-                    <input type="number" id="valRecebidoMobile" placeholder="Valor Recebido" oninput="calcularTrocoMobile()" inputmode="decimal">
-                </div>
-                <div class="troco-display-mobile" id="trocoDisplayMobile" style="text-align:center; margin-bottom:15px; font-weight:bold; color:var(--text-muted);">
-                    Troco: R$ 0,00
-                </div>
-            </div>
-
-            <!-- ÁREA DINÂMICA: PIX (QR CODE) -->
-            <div id="areaPix" class="payment-area" style="display:none; text-align:center; margin-bottom:20px;">
-                <div style="background:#fff; padding:10px; border-radius:10px; display:inline-block;">
-                    <canvas id="qrPixMobile" style="width:200px; height:200px;"></canvas>
-                </div>
-                <p style="color:var(--text-muted); font-size:0.9rem; margin-top:10px;">Escaneie para pagar</p>
-            </div>
-
-            <!-- ÁREA DINÂMICA: FIADO (CLIENTE) -->
-            <div id="areaFiado" class="payment-area" style="display:none; margin-bottom:20px;">
-                <div class="client-selector" onclick="abrirSeletorCliente()" style="background:rgba(255,255,255,0.1); border:1px solid var(--primary);">
-                    <i class="material-icons-round" style="color:var(--primary)">person</i>
-                    <span id="nomeClienteFiadoMobile">Consumidor Final</span>
-                    <i class="material-icons-round chevron">edit</i>
-                </div>
-                <p style="color:var(--danger); font-size:0.8rem; margin-top:5px; display:none;" id="avisoFiadoMobile">Selecione um cliente para Fiado!</p>
-            </div>
-
-            <button class="btn-primary-mobile confirm-btn" onclick="confirmarVendaMobile()">
-                CONFIRMAR
-            </button>
-        </div>
-    </div>
-
-    <!-- Clientes (Busca) -->
-    <div id="modalClientes" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header-simple">
-                <h3>Cliente</h3>
-                <button onclick="fecharModal('modalClientes')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            
-            <button class="btn-primary-mobile" style="margin-bottom:15px; background:var(--secondary); color:#000;" onclick="abrirCadastroCliente()">
-                <i class="material-icons-round" style="vertical-align:middle; font-size:1.2rem; margin-right:5px;">person_add</i> Novo Cliente
-            </button>
-
-            <div class="search-input-box" style="margin-bottom:10px;">
-                <i class="material-icons-round">search</i>
-                <input type="text" id="buscaClienteMobile" placeholder="Nome/CPF..." onkeyup="buscarClienteAPI(this.value)">
-            </div>
-            <div id="listaClientesBusca" class="list-vertical-scroll">
-                <div class="list-item" onclick="selecionarCliente('','Consumidor Final')">
-                    <div class="icon-box"><i class="material-icons-round">person</i></div>
-                    <div class="info"><strong>Consumidor Final</strong><span>Padrão</span></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Cadastro de Cliente -->
-    <div id="modalCadastroCliente" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header-simple">
-                <h3>Novo Cliente</h3>
-                <button onclick="fecharModal('modalCadastroCliente')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            <div class="list-vertical-scroll" style="padding:5px;">
-                <form id="formCadClienteMobile" onsubmit="salvarNovoClienteMobile(event)">
-                    <div class="input-material">
-                        <i class="material-icons-round">person</i>
-                        <input type="text" id="cliNome" placeholder="Nome Completo" required>
-                    </div>
-                    <div class="input-material">
-                        <i class="material-icons-round">badge</i>
-                        <input type="tel" id="cliDoc" placeholder="CPF ou CNPJ">
-                    </div>
-                    <div class="input-material">
-                        <i class="material-icons-round">phone</i>
-                        <input type="tel" id="cliTel" placeholder="Telefone / WhatsApp">
-                    </div>
-                    <div class="input-material">
-                        <i class="material-icons-round">location_on</i>
-                        <input type="text" id="cliEnd" placeholder="Endereço">
-                    </div>
-                    <div class="input-material">
-                        <i class="material-icons-round">attach_money</i>
-                        <input type="number" id="cliLimite" placeholder="Limite Fiado (R$)" step="0.01">
-                    </div>
-                    <button type="submit" class="btn-primary-mobile">SALVAR CLIENTE</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- NOVO MODAL: Catálogo Digital -->
-    <div id="modalCatalogo" class="modal-overlay bottom-sheet">
-        <div class="sheet-content">
-            <div class="sheet-header">
-                <h3>Catálogo Digital</h3>
-                <button onclick="fecharModal('modalCatalogo')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
-            </div>
-            
-            <div style="text-align:center; margin-bottom:20px;">
-                <div style="width:80px; height:80px; background:rgba(6,182,212,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; color:var(--primary);">
-                    <i class="material-icons-round" style="font-size:40px;">storefront</i>
-                </div>
-                <p style="color:var(--text-muted); font-size:0.9rem;">Envie este link para seu cliente fazer pedidos online.</p>
-            </div>
-            
-            <div class="input-material" style="display:flex; align-items:center; gap:10px;">
-                <input type="text" id="linkCatalogoInput" value="https://sistemashoop.github.io/CatalagoRB/" readonly style="text-align:center; font-size:0.9rem; color:var(--secondary); font-weight:bold;">
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <button onclick="copiarLinkCatalogo()" class="btn-primary-mobile" style="margin:0; background:var(--bg-card); border:1px solid var(--border);">
-                    <i class="material-icons-round" style="vertical-align:middle;">content_copy</i> Copiar
-                </button>
-                <button onclick="compartilharNativo()" class="btn-primary-mobile" style="margin:0;">
-                    <i class="material-icons-round" style="vertical-align:middle;">share</i> Enviar
-                </button>
-            </div>
-            
-            <a href="https://sistemashoop.github.io/CatalagoRB/" target="_blank" class="btn-primary-mobile" style="background:transparent; border:1px solid var(--primary); color:var(--primary); margin-top:15px; display:flex; align-items:center; justify-content:center; gap:5px; text-decoration:none;">
-                <i class="material-icons-round">open_in_new</i> Abrir no Navegador
-            </a>
-        </div>
-    </div>
-    
-    <!-- Scripts da Aplicação -->
-    <script src="script.js"></script>
-  </body>
-</html>
+  .loading-placeholder { text-align: center; padding: 40px; color: var(--text-muted); }
+  .spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); opacity: 0.5; }
+  .empty-state i { font-size: 60px; margin-bottom: 10px; }
+  .stock-list-mobile { display: flex; flex-direction: column; gap: 10px; }
+  .stock-item-mobile { background: var(--bg-card); border-radius: var(--radius); padding: 15px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); }
+  .st-icon { width: 40px; height: 40px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .st-info { flex: 1; overflow: hidden; min-width: 0; }
+  .st-prod { font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; }
+  .st-obs { font-size: 0.8rem; color: var(--text-muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-qty { font-weight: 800; font-size: 1.1rem; }
+  
+  /* ESTILOS ESPECÍFICOS PARA ENTRADA/SAÍDA SELECIONADOS */
+  .pag-btn.selected.entrada {
+      background: rgba(16, 185, 129, 0.2) !important;
+      border-color: var(--secondary) !important;
+      color: var(--secondary) !important;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  
+  .pag-btn.selected.saida {
+      background: rgba(239, 68, 68, 0.2) !important;
+      border-color: var(--danger) !important;
+      color: var(--danger) !important;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  }
