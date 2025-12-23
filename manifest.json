@@ -1,5 +1,5 @@
 {
-  "name": "PDV Mobile",
+  "name": "PDV Mobile RB",
   "short_name": "PDV RB",
   "start_url": "./index.html",
   "display": "standalone",
@@ -20,3 +20,4 @@
   ]
 
 }
+
