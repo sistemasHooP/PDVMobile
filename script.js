@@ -490,14 +490,12 @@ function irParaPagamento() {
     document.querySelectorAll('.desc-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('btnDescMoney').classList.add('active');
     
-    calcularTotaisComDesconto(); // Recalcula o total inicial
+    calcularTotaisComDesconto();
     
     selecionarPagamento('Dinheiro', document.getElementById('payBtnDinheiro'));
     document.getElementById('modalPagamento').classList.add('active'); 
     document.getElementById('modalPagamento').style.display = 'flex';
 }
-
-// --- NOVA LÓGICA DE DESCONTO ---
 
 function alternarTipoDesconto(tipo) {
     tipoDesconto = tipo;
@@ -519,7 +517,6 @@ function calcularTotaisComDesconto() {
         descontoFinal = subtotal * (descontoInput / 100);
     }
 
-    // Previne desconto maior que total
     if (descontoFinal > subtotal) descontoFinal = subtotal;
 
     totalComDesconto = subtotal - descontoFinal;
@@ -527,7 +524,6 @@ function calcularTotaisComDesconto() {
     document.getElementById('subtotalDisplay').innerText = `Subtotal: ${fmtMoney(subtotal)}`;
     document.getElementById('totalPagamentoDisplay').innerText = fmtMoney(totalComDesconto);
     
-    // Se estiver na aba dinheiro, recalcula o troco
     if(formaPagamentoSel === 'Dinheiro') calcularTrocoMobile();
     if(formaPagamentoSel === 'Pix') gerarQRPixMobile();
 }
@@ -546,7 +542,6 @@ function calcularTrocoMobile() {
     let valStr = document.getElementById('valRecebidoMobile').value; 
     valStr = valStr.replace(',', '.');
     const recebido = parseFloat(valStr);
-    // Agora usa totalComDesconto em vez do total bruto
     const total = totalComDesconto;
     
     const elTroco = document.getElementById('trocoDisplayMobile');
@@ -570,25 +565,37 @@ function atualizarNomeClienteFiado() {
     else document.getElementById('avisoFiadoMobile').style.display = 'none';
 }
 
-// ⚠️ CORREÇÃO CRÍTICA NA CONFIRMAÇÃO DE VENDA
 function confirmarVendaMobile() {
     if (formaPagamentoSel === 'Fiado' && !clienteAtual.id) { msgErro("Selecione um cliente para Fiado!"); return; }
     
     const totalBruto = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+    const totalFinal = totalComDesconto;
     
-    // Forçamos os valores para número com 2 casas decimais para evitar erros no backend
+    // Captura valores extras se for dinheiro
+    let recebido = 0;
+    let troco = 0;
+    if(formaPagamentoSel === 'Dinheiro') {
+        const valStr = document.getElementById('valRecebidoMobile').value.replace(',', '.');
+        recebido = parseFloat(valStr) || 0;
+        if(recebido < totalFinal) { msgErro("Valor recebido insuficiente!"); return; }
+        troco = recebido - totalFinal;
+    }
+
     const dadosVenda = { 
         itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.preco, subtotal: i.preco * i.qtd })), 
         cliente: clienteAtual.id, 
         vendedor: usuario.nome, 
         totalBruto: Number(totalBruto.toFixed(2)), 
-        totalFinal: Number(totalComDesconto.toFixed(2)), 
-        pagamento: formaPagamentoSel 
+        totalFinal: Number(totalFinal.toFixed(2)), 
+        pagamento: formaPagamentoSel,
+        // Extras para o detalhamento
+        recebido: Number(recebido.toFixed(2)),
+        troco: Number(troco.toFixed(2)),
+        desconto: Number((totalBruto - totalFinal).toFixed(2))
     };
     
     const btn = document.querySelector('.confirm-btn');
     
-    // MODO OFFLINE: TENTA API, SE FALHAR SALVA LOCAL
     if (!navigator.onLine) {
         salvarVendaOffline(dadosVenda);
         Swal.fire({ title: 'Salvo Offline!', text: 'Será enviado quando conectar.', icon: 'info', timer: 2000, showConfirmButton: false });
@@ -623,7 +630,7 @@ function confirmarVendaMobile() {
 }
 
 // ======================================================
-// 5. MÓDULOS GESTÃO
+// 5. MÓDULOS GESTÃO (ATUALIZADO)
 // ======================================================
 
 function carregarHistoricoVendas(filtro) {
@@ -642,27 +649,87 @@ function carregarHistoricoVendas(filtro) {
         lista.innerHTML = '';
         if (vendas.length === 0) { lista.innerHTML = '<div class="empty-state"><i class="material-icons-round">history_toggle_off</i><p>Sem vendas neste período</p></div>'; return; }
         vendas.forEach(v => {
-            const safeCli = v.cliente ? v.cliente.replace(/'/g, "\\'").replace(/"/g, '&quot;') : "Cliente";
-            const safeData = v.data;
-            const safeTotal = fmtMoney(v.total);
-            const safePag = v.pagamento;
-            
-            // Aqui garantimos que o total não venha undefined
+            // Prepara o objeto para passar para o modal (codificado para evitar problemas com aspas)
+            const objVenda = encodeURIComponent(JSON.stringify(v));
             const valorExibir = v.total ? fmtMoney(Number(v.total)) : "R$ 0,00";
 
-            lista.innerHTML += `<div class="list-item" onclick="verDetalhesVenda('${v.id}', '${safeCli}', '${safeData}', '${safeTotal}', '${safePag}')"><div class="icon-box"><i class="material-icons-round">receipt_long</i></div><div class="info"><strong>${v.cliente}</strong><span>${v.data} • ${v.pagamento}</span></div><div style="font-weight:bold; color:var(--primary);">${valorExibir}</div></div>`;
+            lista.innerHTML += `<div class="list-item" onclick="verDetalhesVenda('${objVenda}')"><div class="icon-box"><i class="material-icons-round">receipt_long</i></div><div class="info"><strong>${v.cliente}</strong><span>${v.data} • ${v.pagamento}</span></div><div style="font-weight:bold; color:var(--primary);">${valorExibir}</div></div>`;
         });
     })
     .catch(console.error);
 }
 
-function verDetalhesVenda(idVenda, cliente, data, total, pagamento) {
+function verDetalhesVenda(vendaEncoded) {
+    const venda = JSON.parse(decodeURIComponent(vendaEncoded));
     const modal = document.getElementById('modalDetalheVenda');
     const content = document.getElementById('detalheVendaConteudo');
-    content.innerHTML = `<div style="text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:1px dashed var(--border);"><h3 style="margin:0; color:var(--text-main); letter-spacing:1px; text-transform:uppercase;">${configLoja.nome || 'PDV Mobile'}</h3><p style="margin:5px 0; font-size:0.8rem; color:var(--text-muted);">Comprovante de Venda</p></div><div style="font-size:0.9rem; color:var(--text-main); margin-bottom:15px;"><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted)">Data:</span><span>${data}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted)">Cliente:</span><span style="font-weight:600;">${cliente}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted)">Pagamento:</span><span>${pagamento}</span></div></div><div style="border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">Itens Consumidos</p><div id="listaItensRecibo"><div class="loading-placeholder" style="padding:10px;"><div class="spinner" style="width:20px; height:20px; border-width:2px;"></div></div></div></div><div style="margin-top:15px; border-top:1px dashed var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:1.1rem;">TOTAL</span><span style="font-size:1.4rem; font-weight:800; color:var(--primary);">${total}</span></div><div style="margin-top:20px; text-align:center;"><p style="font-size:0.7rem; color:var(--text-muted);">Obrigado pela preferência!</p></div>`;
+    
+    const extras = venda.extras || {};
+    const desconto = extras.desconto || 0;
+    const recebido = extras.recebido || 0;
+    const troco = extras.troco || 0;
+    const vendedor = extras.vendedor || venda.vendedor || "Mobile";
+
+    // Bloco de Pagamento Dinâmico
+    let htmlPagamento = '';
+    if(venda.pagamento === 'Dinheiro') {
+        htmlPagamento = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Recebido:</span><span>${fmtMoney(recebido)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Troco:</span><span style="color:var(--secondary); font-weight:bold;">${fmtMoney(troco)}</span>
+            </div>`;
+    }
+
+    content.innerHTML = `
+        <div style="text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:1px dashed var(--border);">
+            <h3 style="margin:0; color:var(--text-main); letter-spacing:1px; text-transform:uppercase;">${configLoja.nome || 'PDV Mobile'}</h3>
+            <p style="margin:5px 0; font-size:0.8rem; color:var(--text-muted);">Comprovante de Venda</p>
+        </div>
+        
+        <div style="border-bottom:1px dashed var(--border); padding-bottom:10px; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Data:</span><span>${venda.data}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Cliente:</span><span style="font-weight:600;">${venda.cliente}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Vendedor:</span><span>${vendedor}</span>
+            </div>
+        </div>
+
+        <p style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">Itens Consumidos</p>
+        <div id="listaItensRecibo" style="border-bottom:1px dashed var(--border); padding-bottom:10px; margin-bottom:10px;">
+            <div class="loading-placeholder" style="padding:10px;"><div class="spinner" style="width:20px; height:20px; border-width:2px;"></div></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+            <span style="color:var(--text-muted)">Subtotal:</span><span>${fmtMoney(venda.totalBruto || venda.total)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+            <span style="color:var(--text-muted)">Desconto:</span><span style="color:var(--danger)">-${fmtMoney(desconto)}</span>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0; font-size:1.2rem;">
+            <span>TOTAL</span><span style="font-weight:800; color:var(--primary);">${fmtMoney(venda.total)}</span>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span style="color:var(--text-muted)">Forma Pagamento:</span><span style="font-weight:600;">${venda.pagamento}</span>
+            </div>
+            ${htmlPagamento}
+        </div>
+
+        <div style="margin-top:20px; text-align:center;">
+            <p style="font-size:0.7rem; color:var(--text-muted);">Obrigado pela preferência!</p>
+        </div>
+    `;
     modal.style.display = 'flex';
     
-    apiRequest('getItensVendaMobile', { idVenda: idVenda })
+    apiRequest('getItensVendaMobile', { idVenda: venda.id })
     .then(r => {
         const itens = (typeof r === 'string') ? JSON.parse(r) : r;
         const divItens = document.getElementById('listaItensRecibo');
@@ -673,226 +740,20 @@ function verDetalhesVenda(idVenda, cliente, data, total, pagamento) {
     .catch(console.error);
 }
 
-function carregarUsuarios() {
-    if (!navigator.onLine) return;
-    const lista = document.getElementById('listaUsuarios');
-    lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
-    
-    apiRequest('getUsuariosMobile')
-    .then(r => {
-        const users = (typeof r === 'string') ? JSON.parse(r) : r;
-        lista.innerHTML = '';
-        if(users.length === 0) { lista.innerHTML = '<p style="text-align:center; opacity:0.5;">Nenhum usuário.</p>'; return; }
-        users.forEach(u => {
-            lista.innerHTML += `<div class="list-item" onclick="abrirModalUsuario('${u.id}', '${u.nome}', '${u.login}', '${u.perfil}')"><div class="icon-box"><i class="material-icons-round">person</i></div><div class="info"><strong>${u.nome}</strong><span>${u.perfil} | ${u.login}</span></div><button class="btn-text-danger" onclick="excluirUsuario('${u.id}'); event.stopPropagation();"><i class="material-icons-round">delete</i></button></div>`;
-        });
-    })
-    .catch(console.error);
-}
-
-function abrirModalUsuario(id='', nome='', login='', perfil='Vendedor') {
-    document.getElementById('usuId').value = id;
-    document.getElementById('usuNome').value = nome;
-    document.getElementById('usuLogin').value = login;
-    document.getElementById('usuSenha').value = ''; 
-    document.getElementById('usuPerfil').value = perfil;
-    document.getElementById('modalUsuario').style.display = 'flex';
-}
-
-function salvarUsuario(e) {
-    e.preventDefault();
-    const dados = { id: document.getElementById('usuId').value, nome: document.getElementById('usuNome').value, login: document.getElementById('usuLogin').value, senha: document.getElementById('usuSenha').value, perfil: document.getElementById('usuPerfil').value };
-    if(!dados.id && !dados.senha) { msgErro("Senha é obrigatória para novo usuário."); return; }
-    const btn = e.target.querySelector('button');
-    const txt = btn.innerText; btn.innerText = "Salvando..."; btn.disabled = true;
-    
-    apiRequest('salvarUsuarioMobile', dados)
-    .then(r => {
-        Swal.fire({icon:'success', title: r, timer: 1500, showConfirmButton:false}); 
-        fecharModal('modalUsuario'); carregarUsuarios(); 
-        btn.innerText = txt; btn.disabled = false; 
-    })
-    .catch(e => {
-        msgErro(e.message); btn.innerText = txt; btn.disabled = false;
-    });
-}
-
-function excluirUsuario(id) {
-    Swal.fire({ title: 'Excluir usuário?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#334155', confirmButtonText: 'Sim' }).then((result) => { 
-        if (result.isConfirmed) { 
-            apiRequest('excluirUsuarioMobile', { id: id })
-            .then(r => {
-                Swal.fire('Excluído!', r, 'success'); carregarUsuarios(); 
-            })
-            .catch(e => msgErro(e.message));
-        } 
-    });
-}
-
-function carregarListaDevedores() {
-    if (!navigator.onLine) {
-        document.getElementById('listaDevedores').innerHTML = '<div class="empty-state"><p>Lista indisponível offline.</p></div>';
-        return;
-    }
-    const lista = document.getElementById('listaDevedores');
-    lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
-    
-    apiRequest('getClientesComDividaMobile')
-    .then(r => {
-        const clientes = (typeof r === 'string') ? JSON.parse(r) : r;
-        lista.innerHTML = '';
-        if (clientes.length === 0) { lista.innerHTML = '<div class="empty-state"><p>Nenhum cliente cadastrado.</p></div>'; return; }
-        clientes.forEach(c => {
-            const temDivida = c.saldo > 0;
-            const corSaldo = temDivida ? 'var(--danger)' : 'var(--secondary)';
-            const btnBaixa = temDivida ? `<button class="btn-sm-primary" style="margin-top:5px; width:100%;" onclick="abrirBaixaFiado('${c.id}', '${c.nome}', ${c.saldo}); event.stopPropagation();">Baixar Dívida</button>` : '';
-            lista.innerHTML += `<div class="prod-card-mobile" style="flex-direction:column; align-items:flex-start; gap:5px;"><div style="display:flex; justify-content:space-between; width:100%; align-items:center;"><div style="font-weight:bold; font-size:1rem;">${c.nome}</div><div style="font-weight:bold; color:${corSaldo};">${fmtMoney(c.saldo)}</div></div><div style="font-size:0.8rem; color:var(--text-muted);">CPF: ${c.cpf}</div>${btnBaixa}</div>`;
-        });
-    })
-    .catch(console.error);
-}
-
-function filtrarListaClientes(termo) {
-    const t = termo.toLowerCase();
-    const cards = document.querySelectorAll('#listaDevedores .prod-card-mobile');
-    cards.forEach(card => {
-        const nome = card.innerText.toLowerCase();
-        if(nome.includes(t)) card.style.display = 'flex';
-        else card.style.display = 'none';
-    });
-}
-
-function abrirBaixaFiado(id, nome, saldo) {
-    clienteEmBaixaId = id;
-    document.getElementById('baixaIdCliente').value = id;
-    document.getElementById('baixaNomeCliente').innerText = nome;
-    document.getElementById('baixaDividaAtual').innerText = fmtMoney(saldo);
-    document.getElementById('baixaValor').value = '';
-    const listaExtrato = document.getElementById('extratoClienteLista');
-    listaExtrato.innerHTML = 'Carregando...';
-    
-    apiRequest('getExtratoClienteMobile', { id: id })
-    .then(r => {
-        const hist = (typeof r === 'string') ? JSON.parse(r) : r;
-        listaExtrato.innerHTML = '';
-        hist.forEach(h => {
-            const cor = h.tipo === 'VENDA' ? 'var(--danger)' : 'var(--secondary)';
-            listaExtrato.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${h.data} (${h.tipo})</span><span style="color:${cor}">${fmtMoney(h.valor)}</span></div>`;
-        });
-    })
-    .catch(console.error);
-    
-    document.getElementById('modalBaixaFiado').classList.add('active');
-    document.getElementById('modalBaixaFiado').style.display = 'flex';
-}
-
-function selPagBaixa(tipo, btn) {
-    formaPagamentoBaixa = tipo;
-    document.querySelectorAll('#modalBaixaFiado .pag-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-}
-
-function confirmarBaixaFiado() {
-    const valor = document.getElementById('baixaValor').value;
-    if(!valor || valor <= 0) { msgErro("Valor inválido"); return; }
-    const btn = document.querySelector('#modalBaixaFiado .btn-primary-mobile');
-    Swal.fire({ title: 'Processando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    btn.disabled = true;
-    const dados = { clienteId: clienteEmBaixaId, valor: valor, formaPagamento: formaPagamentoBaixa, usuario: usuario.nome };
-    
-    apiRequest('baixarFiadoMobile', dados)
-    .then(r => {
-        Swal.fire({ icon: 'success', title: 'Pagamento Recebido!', text: r });
-        fecharModal('modalBaixaFiado'); carregarListaDevedores(); btn.disabled = false;
-    })
-    .catch(e => {
-        btn.disabled = false; msgErro(e.message);
-    });
-}
-
-function atualizarFinanceiro() {
-    if (!navigator.onLine) {
-        document.getElementById('dashVendasHoje').innerText = '-';
-        document.getElementById('dashFiados').innerText = '-';
-        document.getElementById('dashStatusCaixa').innerText = 'Offline';
-        return;
-    }
-    document.getElementById('dashVendasHoje').innerText = '...';
-    document.getElementById('dashFiados').innerText = '...';
-    
-    apiRequest('getResumoFinanceiroMobile')
-    .then(r => {
-        const dados = (typeof r === 'string') ? JSON.parse(r) : r;
-        document.getElementById('dashVendasHoje').innerText = fmtMoney(dados.vendasHoje);
-        document.getElementById('dashFiados').innerText = fmtMoney(dados.fiadosReceber);
-        const st = document.getElementById('dashStatusCaixa');
-        st.innerText = dados.statusCaixa;
-        st.style.color = dados.statusCaixa === 'ABERTO' ? 'var(--secondary)' : 'var(--danger)';
-    })
-    .catch(console.error);
-}
-
-function salvarConfiguracoes(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const txt = btn.innerText; btn.innerText = "Salvando..."; btn.disabled = true;
-    const form = { nome: document.getElementById('cfgNome').value, logo: document.getElementById('cfgLogo').value, pixKey: document.getElementById('cfgPix').value, cnpj: document.getElementById('cfgCnpj').value, end: document.getElementById('cfgEnd').value, tel: document.getElementById('cfgTel').value, msg: document.getElementById('cfgMsg').value };
-    
-    apiRequest('salvarConfigMobile', form)
-    .then(r => {
-        Swal.fire('Sucesso', r, 'success'); btn.innerText = txt; btn.disabled = false; carregarConfiguracoesEmpresa(); 
-    })
-    .catch(e => {
-        msgErro(e.message); btn.innerText = txt; btn.disabled = false;
-    });
-}
-
-// --- HELPERS E MANTIDOS ---
- 
-// SCANNER OTIMIZADO PARA CÓDIGOS DE BARRAS (1D)
-function abrirScanner(modo) {
-    scannerMode = modo;
-    document.getElementById('tituloScanner').innerText = modo === 'venda' ? 'Ler para Vender' : 'Ler para Cadastrar';
-    document.getElementById('modalScanner').style.display = 'flex';
-    
-    setTimeout(() => {
-        if (!scannerObj) {
-            const formats = [
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.EAN_8,
-                Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.UPC_E,
-                Html5QrcodeSupportedFormats.ITF
-            ];
-            
-            scannerObj = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats });
-        }
-
-        const config = { 
-            fps: 15, 
-            qrbox: { width: 300, height: 120 }, 
-            aspectRatio: 1.0 
-        };
-        
-        scannerObj.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
-        .catch(err => { 
-            msgErro("Erro ao iniciar câmera: " + err); 
-            fecharScanner(); 
-        });
-    }, 300);
-}
-
-function fecharScanner() {
-    document.getElementById('modalScanner').style.display = 'none';
-    if (scannerObj) {
-        scannerObj.stop().then(() => {
-            // Limpeza opcional
-        }).catch(err => console.log(err));
-    }
-}
-
+// ... (RESTO DO CÓDIGO PERMANECE IDÊNTICO) ...
+function carregarUsuarios() { if (!navigator.onLine) return; const lista = document.getElementById('listaUsuarios'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>'; apiRequest('getUsuariosMobile').then(r => { const users = (typeof r === 'string') ? JSON.parse(r) : r; lista.innerHTML = ''; if(users.length === 0) { lista.innerHTML = '<p style="text-align:center; opacity:0.5;">Nenhum usuário.</p>'; return; } users.forEach(u => { lista.innerHTML += `<div class="list-item" onclick="abrirModalUsuario('${u.id}', '${u.nome}', '${u.login}', '${u.perfil}')"><div class="icon-box"><i class="material-icons-round">person</i></div><div class="info"><strong>${u.nome}</strong><span>${u.perfil} | ${u.login}</span></div><button class="btn-text-danger" onclick="excluirUsuario('${u.id}'); event.stopPropagation();"><i class="material-icons-round">delete</i></button></div>`; }); }).catch(console.error); }
+function abrirModalUsuario(id='', nome='', login='', perfil='Vendedor') { document.getElementById('usuId').value = id; document.getElementById('usuNome').value = nome; document.getElementById('usuLogin').value = login; document.getElementById('usuSenha').value = ''; document.getElementById('usuPerfil').value = perfil; document.getElementById('modalUsuario').style.display = 'flex'; }
+function salvarUsuario(e) { e.preventDefault(); const dados = { id: document.getElementById('usuId').value, nome: document.getElementById('usuNome').value, login: document.getElementById('usuLogin').value, senha: document.getElementById('usuSenha').value, perfil: document.getElementById('usuPerfil').value }; if(!dados.id && !dados.senha) { msgErro("Senha é obrigatória para novo usuário."); return; } const btn = e.target.querySelector('button'); const txt = btn.innerText; btn.innerText = "Salvando..."; btn.disabled = true; apiRequest('salvarUsuarioMobile', dados).then(r => { Swal.fire({icon:'success', title: r, timer: 1500, showConfirmButton:false}); fecharModal('modalUsuario'); carregarUsuarios(); btn.innerText = txt; btn.disabled = false; }).catch(e => { msgErro(e.message); btn.innerText = txt; btn.disabled = false; }); }
+function excluirUsuario(id) { Swal.fire({ title: 'Excluir usuário?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#334155', confirmButtonText: 'Sim' }).then((result) => { if (result.isConfirmed) { apiRequest('excluirUsuarioMobile', { id: id }).then(r => { Swal.fire('Excluído!', r, 'success'); carregarUsuarios(); }).catch(e => msgErro(e.message)); } }); }
+function carregarListaDevedores() { if (!navigator.onLine) { document.getElementById('listaDevedores').innerHTML = '<div class="empty-state"><p>Lista indisponível offline.</p></div>'; return; } const lista = document.getElementById('listaDevedores'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>'; apiRequest('getClientesComDividaMobile').then(r => { const clientes = (typeof r === 'string') ? JSON.parse(r) : r; lista.innerHTML = ''; if (clientes.length === 0) { lista.innerHTML = '<div class="empty-state"><p>Nenhum cliente cadastrado.</p></div>'; return; } clientes.forEach(c => { const temDivida = c.saldo > 0; const corSaldo = temDivida ? 'var(--danger)' : 'var(--secondary)'; const btnBaixa = temDivida ? `<button class="btn-sm-primary" style="margin-top:5px; width:100%;" onclick="abrirBaixaFiado('${c.id}', '${c.nome}', ${c.saldo}); event.stopPropagation();">Baixar Dívida</button>` : ''; lista.innerHTML += `<div class="prod-card-mobile" style="flex-direction:column; align-items:flex-start; gap:5px;"><div style="display:flex; justify-content:space-between; width:100%; align-items:center;"><div style="font-weight:bold; font-size:1rem;">${c.nome}</div><div style="font-weight:bold; color:${corSaldo};">${fmtMoney(c.saldo)}</div></div><div style="font-size:0.8rem; color:var(--text-muted);">CPF: ${c.cpf}</div>${btnBaixa}</div>`; }); }).catch(console.error); }
+function filtrarListaClientes(termo) { const t = termo.toLowerCase(); const cards = document.querySelectorAll('#listaDevedores .prod-card-mobile'); cards.forEach(card => { const nome = card.innerText.toLowerCase(); if(nome.includes(t)) card.style.display = 'flex'; else card.style.display = 'none'; }); }
+function abrirBaixaFiado(id, nome, saldo) { clienteEmBaixaId = id; document.getElementById('baixaIdCliente').value = id; document.getElementById('baixaNomeCliente').innerText = nome; document.getElementById('baixaDividaAtual').innerText = fmtMoney(saldo); document.getElementById('baixaValor').value = ''; const listaExtrato = document.getElementById('extratoClienteLista'); listaExtrato.innerHTML = 'Carregando...'; apiRequest('getExtratoClienteMobile', { id: id }).then(r => { const hist = (typeof r === 'string') ? JSON.parse(r) : r; listaExtrato.innerHTML = ''; hist.forEach(h => { const cor = h.tipo === 'VENDA' ? 'var(--danger)' : 'var(--secondary)'; listaExtrato.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${h.data} (${h.tipo})</span><span style="color:${cor}">${fmtMoney(h.valor)}</span></div>`; }); }).catch(console.error); document.getElementById('modalBaixaFiado').classList.add('active'); document.getElementById('modalBaixaFiado').style.display = 'flex'; }
+function selPagBaixa(tipo, btn) { formaPagamentoBaixa = tipo; document.querySelectorAll('#modalBaixaFiado .pag-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); }
+function confirmarBaixaFiado() { const valor = document.getElementById('baixaValor').value; if(!valor || valor <= 0) { msgErro("Valor inválido"); return; } const btn = document.querySelector('#modalBaixaFiado .btn-primary-mobile'); Swal.fire({ title: 'Processando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } }); btn.disabled = true; const dados = { clienteId: clienteEmBaixaId, valor: valor, formaPagamento: formaPagamentoBaixa, usuario: usuario.nome }; apiRequest('baixarFiadoMobile', dados).then(r => { Swal.fire({ icon: 'success', title: 'Pagamento Recebido!', text: r }); fecharModal('modalBaixaFiado'); carregarListaDevedores(); btn.disabled = false; }).catch(e => { btn.disabled = false; msgErro(e.message); }); }
+function atualizarFinanceiro() { if (!navigator.onLine) { document.getElementById('dashVendasHoje').innerText = '-'; document.getElementById('dashFiados').innerText = '-'; document.getElementById('dashStatusCaixa').innerText = 'Offline'; return; } document.getElementById('dashVendasHoje').innerText = '...'; document.getElementById('dashFiados').innerText = '...'; apiRequest('getResumoFinanceiroMobile').then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; document.getElementById('dashVendasHoje').innerText = fmtMoney(dados.vendasHoje); document.getElementById('dashFiados').innerText = fmtMoney(dados.fiadosReceber); const st = document.getElementById('dashStatusCaixa'); st.innerText = dados.statusCaixa; st.style.color = dados.statusCaixa === 'ABERTO' ? 'var(--secondary)' : 'var(--danger)'; }).catch(console.error); }
+function salvarConfiguracoes(e) { e.preventDefault(); const btn = e.target.querySelector('button[type="submit"]'); const txt = btn.innerText; btn.innerText = "Salvando..."; btn.disabled = true; const form = { nome: document.getElementById('cfgNome').value, logo: document.getElementById('cfgLogo').value, pixKey: document.getElementById('cfgPix').value, cnpj: document.getElementById('cfgCnpj').value, end: document.getElementById('cfgEnd').value, tel: document.getElementById('cfgTel').value, msg: document.getElementById('cfgMsg').value }; apiRequest('salvarConfigMobile', form).then(r => { Swal.fire('Sucesso', r, 'success'); btn.innerText = txt; btn.disabled = false; carregarConfiguracoesEmpresa(); }).catch(e => { msgErro(e.message); btn.innerText = txt; btn.disabled = false; }); }
+function abrirScanner(modo) { scannerMode = modo; document.getElementById('tituloScanner').innerText = modo === 'venda' ? 'Ler para Vender' : 'Ler para Cadastrar'; document.getElementById('modalScanner').style.display = 'flex'; setTimeout(() => { if (!scannerObj) { const formats = [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.ITF ]; scannerObj = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats }); } const config = { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.0 }; scannerObj.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure).catch(err => { msgErro("Erro ao iniciar câmera: " + err); fecharScanner(); }); }, 300); }
+function fecharScanner() { document.getElementById('modalScanner').style.display = 'none'; if (scannerObj) { scannerObj.stop().then(() => { }).catch(err => console.log(err)); } }
 function onScanSuccess(decodedText, decodedResult) { playBeep(); if (scannerMode === 'venda') { const p = dbProdutos.find(x => x.cod === decodedText); if (p) { addCarrinho(p.id); msgSucessoToast(`Lido: ${p.nome}`); } else { msgErro("Produto não encontrado!"); } } else if (scannerMode === 'cadastro') { document.getElementById('cadCodigo').value = decodedText; fecharScanner(); msgSucessoToast("Código capturado!"); } }
 function onScanFailure(error) {}
 function playBeep() { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 1200; gain.gain.value = 0.1; osc.start(); osc.stop(ctx.currentTime + 0.1); if (navigator.vibrate) navigator.vibrate(100); }
@@ -909,18 +770,7 @@ function gerarPayloadPix(chave, valor, nome='LOJA', cidade='BRASIL', txtId='***'
 function renderizarListaEstoque(lista) { const container = document.getElementById('listaEstoqueProdutos'); if(!container) return; container.innerHTML = ''; if (lista.length === 0) { container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; opacity:0.6">Nenhum produto.</div>'; return; } lista.forEach(p => { if (p.controla) { const corEstoque = p.estoque <= 0 ? 'var(--danger)' : (p.estoque < 5 ? '#f59e0b' : 'var(--secondary)'); const img = p.foto && p.foto.includes('http') ? p.foto : 'https://i.postimg.cc/Hx8k8k8k/box.png'; container.innerHTML += `<div class="prod-card-mobile" style="padding: 12px; gap: 15px;" onclick="abrirAjusteEstoque('${p.id}')"><div class="img-box" style="width: 50px; height: 50px;"><img src="${img}"></div><div class="info-box"><div class="p-name">${p.nome}</div><div style="font-size:0.8rem; color:var(--text-muted)">Qtd Atual: <strong style="color:${corEstoque}; font-size:1rem;">${p.estoque}</strong></div></div><i class="material-icons-round" style="color:var(--primary); opacity:0.5">edit</i></div>`; } }); }
 function filtrarEstoqueMobile(termo) { const t = termo.toLowerCase(); const filtrados = dbProdutos.filter(p => p.nome.toLowerCase().includes(t) || p.cod.toLowerCase().includes(t)); renderizarListaEstoque(filtrados); }
 function abrirAjusteEstoque(id) { const p = dbProdutos.find(x => x.id === id); if (!p) return; produtoEmEdicaoId = p.id; document.getElementById('ajusteIdProd').value = p.id; document.getElementById('ajusteNomeProd').innerText = p.nome; document.getElementById('ajusteQtd').value = ''; setTipoAjuste('ENTRADA'); document.getElementById('modalAjusteEstoque').classList.add('active'); document.getElementById('modalAjusteEstoque').style.display = 'flex'; }
-function setTipoAjuste(tipo) { tipoAjusteAtual = tipo; document.getElementById('btnEntrada').classList.remove('selected'); document.getElementById('btnSaida').classList.remove('selected'); 
-    document.getElementById('btnEntrada').classList.remove('entrada');
-    document.getElementById('btnSaida').classList.remove('saida');
-    
-    if (tipo === 'ENTRADA') {
-        document.getElementById('btnEntrada').classList.add('selected');
-        document.getElementById('btnEntrada').classList.add('entrada');
-    } else {
-        document.getElementById('btnSaida').classList.add('selected');
-        document.getElementById('btnSaida').classList.add('saida');
-    }
-}
+function setTipoAjuste(tipo) { tipoAjusteAtual = tipo; document.getElementById('btnEntrada').classList.remove('selected'); document.getElementById('btnSaida').classList.remove('selected'); document.getElementById('btnEntrada').classList.remove('entrada'); document.getElementById('btnSaida').classList.remove('saida'); if (tipo === 'ENTRADA') { document.getElementById('btnEntrada').classList.add('selected'); document.getElementById('btnEntrada').classList.add('entrada'); } else { document.getElementById('btnSaida').classList.add('selected'); document.getElementById('btnSaida').classList.add('saida'); } }
 function confirmarAjusteMobile() { const id = document.getElementById('ajusteIdProd').value; const qtd = document.getElementById('ajusteQtd').value; const motivo = document.getElementById('ajusteMotivo').value; if (!qtd || qtd <= 0) { msgErro("Qtd inválida."); return; } const btn = document.querySelector('#modalAjusteEstoque .confirm-btn'); btn.disabled = true; const dados = { id: id, tipo: tipoAjusteAtual, qtd: qtd, motivo: motivo || "Ajuste Mobile", usuario: usuario.nome }; apiRequest('lancarMovimentacaoEstoqueMobile', dados).then(r => { Swal.fire({ title: 'Sucesso!', text: r, icon: 'success', timer: 1500, showConfirmButton: false }); fecharModal('modalAjusteEstoque'); btn.disabled = false; carregarProdutos(); }).catch(e => { btn.disabled = false; msgErro(e.message); }); }
 function abrirEdicaoProduto() { if(!produtoEmEdicaoId) return; const p = dbProdutos.find(x => x.id === produtoEmEdicaoId); if(!p) return; document.getElementById('editNome').value = p.nome; document.getElementById('editPreco').value = p.preco; document.getElementById('editPromo').value = p.precoPromo || ''; document.getElementById('editCod').value = p.cod; const selCat = document.getElementById('editCategoria'); if(selCat) selCat.value = p.cat; fecharModal('modalAjusteEstoque'); document.getElementById('modalEditarProduto').style.display = 'flex'; }
 function salvarEdicaoProduto() { const btn = document.querySelector('#modalEditarProduto button'); btn.disabled = true; const dados = { id: produtoEmEdicaoId, nome: document.getElementById('editNome').value, preco: document.getElementById('editPreco').value, promo: document.getElementById('editPromo').value, cat: document.getElementById('editCategoria').value, cod: document.getElementById('editCod').value }; apiRequest('editarProdutoMobile', dados).then(r => { Swal.fire({ icon: 'success', title: 'Atualizado!', timer: 1500, showConfirmButton: false }); fecharModal('modalEditarProduto'); btn.disabled = false; carregarProdutos(); }).catch(e => { Swal.fire('Erro', e.message, 'error'); btn.disabled = false; }); }
@@ -931,41 +781,6 @@ function abrirHistoricoGeral() { document.getElementById('modalHistoricoGeral').
 function carregarHistoricoEstoque() { if (!navigator.onLine) return; const lista = document.getElementById('listaHistoricoCompleta'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div> Carregando...</div>'; estoquePage = 1; document.getElementById('btnLoadMoreStock').style.display = 'none'; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, true); }); }
 function carregarMaisEstoque() { estoquePage++; const btn = document.getElementById('btnLoadMoreStock'); btn.disabled = true; apiRequest('getHistoricoEstoqueMobile', { page: estoquePage }).then(r => { const dados = (typeof r === 'string') ? JSON.parse(r) : r; renderizarHistoricoEstoque(dados, false); btn.disabled = false; }); }
 function renderizarHistoricoEstoque(lista, reset) { const container = document.getElementById('listaHistoricoCompleta'); if (reset) container.innerHTML = ''; if (lista.length === 0 && reset) { container.innerHTML = '<div class="empty-state"><i class="material-icons-round">history</i><p>Sem histórico</p></div>'; return; } if (lista.length < 20) { document.getElementById('btnLoadMoreStock').style.display = 'none'; } else { document.getElementById('btnLoadMoreStock').style.display = 'block'; } lista.forEach(i => { const cor = i.tipo === 'ENTRADA' ? 'var(--secondary)' : 'var(--danger)'; const icon = i.tipo === 'ENTRADA' ? 'arrow_downward' : 'arrow_upward'; container.innerHTML += `<div class="stock-item-mobile"><div class="st-icon" style="color:${cor}; border-color:${cor}"><i class="material-icons-round">${icon}</i></div><div class="st-info"><div class="st-prod">${i.nome}</div><div class="st-meta">${i.data} • ${i.usuario}</div><div class="st-obs">${i.motivo}</div></div><div class="st-qty" style="color:${cor}">${i.tipo === 'ENTRADA' ? '+' : '-'}${i.qtd}</div></div>`; }); }
-
-// --- NOVAS FUNÇÕES DO CATÁLOGO ---
-
-function abrirModalCatalogo() {
-    document.getElementById('modalCatalogo').style.display = 'flex';
-    setTimeout(() => {
-      document.getElementById('modalCatalogo').classList.add('active');
-    }, 10);
-}
-
-function copiarLinkCatalogo() {
-    const copyText = document.getElementById("linkCatalogoInput");
-    copyText.select();
-    copyText.setSelectionRange(0, 99999); // Mobile
-    navigator.clipboard.writeText(copyText.value).then(() => {
-        msgSucessoToast("Link copiado!");
-    }).catch(err => {
-        console.error('Erro ao copiar: ', err);
-        // Fallback manual se clipboard API falhar
-        document.execCommand('copy');
-        msgSucessoToast("Link copiado!");
-    });
-}
-
-function compartilharNativo() {
-    if (navigator.share) {
-        navigator.share({
-            title: 'Catálogo Digital',
-            text: 'Confira nosso catálogo de produtos:',
-            url: 'https://sistemashoop.github.io/CatalagoRB/'
-        })
-        .then(() => console.log('Successful share'))
-        .catch((error) => console.log('Error sharing', error));
-    } else {
-        // Se não suportar, faz a cópia como fallback
-        copiarLinkCatalogo();
-    }
-}
+function abrirModalCatalogo() { document.getElementById('modalCatalogo').style.display = 'flex'; setTimeout(() => { document.getElementById('modalCatalogo').classList.add('active'); }, 10); }
+function copiarLinkCatalogo() { const copyText = document.getElementById("linkCatalogoInput"); copyText.select(); copyText.setSelectionRange(0, 99999); navigator.clipboard.writeText(copyText.value).then(() => { msgSucessoToast("Link copiado!"); }).catch(err => { console.error('Erro ao copiar: ', err); document.execCommand('copy'); msgSucessoToast("Link copiado!"); }); }
+function compartilharNativo() { if (navigator.share) { navigator.share({ title: 'Catálogo Digital', text: 'Confira nosso catálogo de produtos:', url: 'https://sistemashoop.github.io/CatalagoRB/' }).then(() => console.log('Successful share')).catch((error) => console.log('Error sharing', error)); } else { copiarLinkCatalogo(); } }
