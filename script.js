@@ -22,6 +22,7 @@ let estoquePage = 1;
 let tipoAjusteAtual = 'ENTRADA';
 let produtoEmEdicaoId = null; 
 let clienteEmBaixaId = null; 
+let editItemIndex = -1; // Índice do item sendo editado no carrinho
 
 // --- NOVAS VARIÁVEIS PARA DESCONTO ---
 let tipoDesconto = 'money'; // 'money' ou 'percent'
@@ -342,12 +343,11 @@ function mudarAba(aba) {
 }
 
 // ======================================================
-// 3. PRODUTOS & CARRINHO
+// 3. PRODUTOS & CARRINHO (COM DESCONTO UNITÁRIO)
 // ======================================================
 function carregarProdutos() {
     const cache = localStorage.getItem(CACHE_PRODS_KEY);
     
-    // Se offline, usa o cache e não tenta a API
     if (!navigator.onLine) {
         if (cache) {
             dbProdutos = JSON.parse(cache);
@@ -439,16 +439,30 @@ function filtrarPorCategoria(cat, btn) {
     if(cat === 'Todas') { renderizarProdutos(dbProdutos); } else { const filtrados = dbProdutos.filter(p => p.cat === cat); renderizarProdutos(filtrados); }
 }
 
+// ADICIONAR ITEM: Agora salva preço Original e Venda
 function addCarrinho(id) {
     const p = dbProdutos.find(x => x.id === id);
     if (!p) return;
     if (p.controla && p.estoque <= 0) { msgErro("Produto esgotado!"); navigator.vibrate(200); return; }
+    
     const itemExistente = carrinho.find(x => x.id === id);
-    const precoFinal = (p.precoPromo && p.precoPromo > 0) ? p.precoPromo : p.preco;
+    
+    // Se tem promoção ativa, esse é o preço base de venda
+    const precoBase = (p.precoPromo && p.precoPromo > 0) ? p.precoPromo : p.preco;
+    
     if (itemExistente) {
         if (p.controla && (itemExistente.qtd + 1 > p.estoque)) { msgErro("Stock insuficiente!"); return; }
         itemExistente.qtd++;
-    } else { carrinho.push({ id: p.id, nome: p.nome, preco: precoFinal, qtd: 1, foto: p.foto }); }
+    } else { 
+        carrinho.push({ 
+            id: p.id, 
+            nome: p.nome, 
+            precoOriginal: p.preco, // Preço de tabela
+            precoVenda: precoBase,  // Preço efetivo (pode ser editado)
+            qtd: 1, 
+            foto: p.foto 
+        }); 
+    }
     atualizarCarrinhoUI();
     msgSucessoToast(`${p.nome} adicionado!`);
     navigator.vibrate(50);
@@ -457,6 +471,7 @@ function addCarrinho(id) {
 function removerItem(index) { carrinho.splice(index, 1); atualizarCarrinhoUI(); }
 function limparCarrinho() { if(carrinho.length===0) return; carrinho=[]; atualizarCarrinhoUI(); }
 
+// ATUALIZADO: Mostra preço riscado e permite clique para editar
 function atualizarCarrinhoUI() {
     const lista = document.getElementById('cartItemsList');
     const count = document.getElementById('cartCount');
@@ -464,15 +479,38 @@ function atualizarCarrinhoUI() {
     const totalEl = document.getElementById('totalCarrinho');
     lista.innerHTML = '';
     let total = 0; let qtdItens = 0;
+    
     if (carrinho.length === 0) {
         lista.innerHTML = `<div class="empty-state"><i class="material-icons-round">remove_shopping_cart</i><p>Carrinho vazio</p></div>`;
         if(badgeNav) badgeNav.style.display = 'none';
     } else {
         carrinho.forEach((item, index) => {
-            const subtotal = item.preco * item.qtd;
-            total += subtotal; qtdItens += item.qtd;
+            // Calcula usando o preçoVenda
+            const subtotal = item.precoVenda * item.qtd;
+            total += subtotal; 
+            qtdItens += item.qtd;
             const img = item.foto && item.foto.includes('http') ? item.foto : 'https://i.postimg.cc/Hx8k8k8k/box.png';
-            lista.innerHTML += `<div class="cart-item-mobile"><img src="${img}" class="ci-img"><div class="ci-info"><div class="ci-name">${item.nome}</div><div class="ci-price">${item.qtd} x ${fmtMoney(item.preco)}</div><div class="ci-sub">${fmtMoney(subtotal)}</div></div><button class="ci-remove" onclick="removerItem(${index})"><i class="material-icons-round">delete</i></button></div>`;
+            
+            // Lógica visual: preço riscado se diferente
+            let displayPreco = '';
+            if (item.precoVenda < item.precoOriginal) {
+                displayPreco = `<span style="text-decoration:line-through; font-size:0.75rem; opacity:0.7; margin-right:5px;">${fmtMoney(item.precoOriginal)}</span> <span style="color:var(--danger); font-weight:bold;">${fmtMoney(item.precoVenda)}</span>`;
+            } else {
+                displayPreco = fmtMoney(item.precoVenda);
+            }
+
+            lista.innerHTML += `
+            <div class="cart-item-mobile">
+                <div style="display:flex; align-items:center; flex:1;" onclick="abrirEdicaoItemCarrinho(${index})">
+                    <img src="${img}" class="ci-img">
+                    <div class="ci-info">
+                        <div class="ci-name">${item.nome} <i class="material-icons-round" style="font-size:12px; opacity:0.5;">edit</i></div>
+                        <div class="ci-price">${item.qtd} x ${displayPreco}</div>
+                        <div class="ci-sub">${fmtMoney(subtotal)}</div>
+                    </div>
+                </div>
+                <button class="ci-remove" onclick="removerItem(${index})"><i class="material-icons-round">delete</i></button>
+            </div>`;
         });
         if(badgeNav) { badgeNav.innerText = qtdItens; badgeNav.style.display = 'flex'; }
     }
@@ -481,10 +519,43 @@ function atualizarCarrinhoUI() {
     document.getElementById('totalPagamentoDisplay').innerText = fmtMoney(total);
 }
 
+// --- FUNÇÕES DE EDIÇÃO DE ITEM DO CARRINHO (NOVO) ---
+
+function abrirEdicaoItemCarrinho(index) {
+    const item = carrinho[index];
+    if(!item) return;
+    
+    editItemIndex = index;
+    document.getElementById('editItemNome').innerText = item.nome;
+    document.getElementById('editItemPreco').value = item.precoVenda; // Carrega preço atual
+    
+    const modal = document.getElementById('modalEditarItem');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+}
+
+function salvarEdicaoItem() {
+    const novoPreco = parseFloat(document.getElementById('editItemPreco').value);
+    
+    if (isNaN(novoPreco) || novoPreco < 0) {
+        msgErro("Preço inválido!");
+        return;
+    }
+    
+    if (editItemIndex > -1 && carrinho[editItemIndex]) {
+        // Atualiza o preço deste item na memória do carrinho
+        carrinho[editItemIndex].precoVenda = novoPreco;
+        
+        atualizarCarrinhoUI();
+        msgSucessoToast("Preço atualizado!");
+        fecharModal('modalEditarItem');
+    }
+}
+
 function irParaPagamento() {
     if (carrinho.length === 0) { msgErro("Carrinho vazio!"); return; }
     
-    // Resetar Desconto
+    // Resetar Desconto Global
     tipoDesconto = 'money';
     document.getElementById('valDesconto').value = '';
     document.querySelectorAll('.desc-btn').forEach(b => b.classList.remove('active'));
@@ -506,7 +577,9 @@ function alternarTipoDesconto(tipo) {
 }
 
 function calcularTotaisComDesconto() {
-    const subtotal = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
+    // Soma usando o precoVenda (que já pode ter descontos individuais)
+    const subtotal = carrinho.reduce((a, b) => a + (b.precoVenda * b.qtd), 0);
+    
     let descontoInput = parseFloat(document.getElementById('valDesconto').value);
     if (isNaN(descontoInput) || descontoInput < 0) descontoInput = 0;
 
@@ -568,10 +641,10 @@ function atualizarNomeClienteFiado() {
 function confirmarVendaMobile() {
     if (formaPagamentoSel === 'Fiado' && !clienteAtual.id) { msgErro("Selecione um cliente para Fiado!"); return; }
     
-    const totalBruto = carrinho.reduce((a, b) => a + (b.preco * b.qtd), 0);
-    const totalFinal = totalComDesconto;
+    // Total bruto baseado no preço de VENDA (com descontos individuais)
+    const totalBruto = carrinho.reduce((a, b) => a + (b.precoVenda * b.qtd), 0);
+    const totalFinal = totalComDesconto; // Após desconto global
     
-    // Captura valores extras se for dinheiro
     let recebido = 0;
     let troco = 0;
     if(formaPagamentoSel === 'Dinheiro') {
@@ -582,13 +655,13 @@ function confirmarVendaMobile() {
     }
 
     const dadosVenda = { 
-        itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.preco, subtotal: i.preco * i.qtd })), 
+        // Envia 'precoVenda' como preço unitário
+        itens: carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qtd, preco: i.precoVenda, subtotal: i.precoVenda * i.qtd })), 
         cliente: clienteAtual.id, 
         vendedor: usuario.nome, 
         totalBruto: Number(totalBruto.toFixed(2)), 
         totalFinal: Number(totalFinal.toFixed(2)), 
         pagamento: formaPagamentoSel,
-        // Extras para o detalhamento
         recebido: Number(recebido.toFixed(2)),
         troco: Number(troco.toFixed(2)),
         desconto: Number((totalBruto - totalFinal).toFixed(2))
@@ -630,7 +703,7 @@ function confirmarVendaMobile() {
 }
 
 // ======================================================
-// 5. MÓDULOS GESTÃO (ATUALIZADO)
+// 5. MÓDULOS GESTÃO
 // ======================================================
 
 function carregarHistoricoVendas(filtro) {
@@ -649,10 +722,8 @@ function carregarHistoricoVendas(filtro) {
         lista.innerHTML = '';
         if (vendas.length === 0) { lista.innerHTML = '<div class="empty-state"><i class="material-icons-round">history_toggle_off</i><p>Sem vendas neste período</p></div>'; return; }
         vendas.forEach(v => {
-            // Prepara o objeto para passar para o modal (codificado para evitar problemas com aspas)
             const objVenda = encodeURIComponent(JSON.stringify(v));
             const valorExibir = v.total ? fmtMoney(Number(v.total)) : "R$ 0,00";
-
             lista.innerHTML += `<div class="list-item" onclick="verDetalhesVenda('${objVenda}')"><div class="icon-box"><i class="material-icons-round">receipt_long</i></div><div class="info"><strong>${v.cliente}</strong><span>${v.data} • ${v.pagamento}</span></div><div style="font-weight:bold; color:var(--primary);">${valorExibir}</div></div>`;
         });
     })
@@ -670,7 +741,6 @@ function verDetalhesVenda(vendaEncoded) {
     const troco = extras.troco || 0;
     const vendedor = extras.vendedor || venda.vendedor || "Mobile";
 
-    // Bloco de Pagamento Dinâmico
     let htmlPagamento = '';
     if(venda.pagamento === 'Dinheiro') {
         htmlPagamento = `
@@ -687,7 +757,6 @@ function verDetalhesVenda(vendaEncoded) {
             <h3 style="margin:0; color:var(--text-main); letter-spacing:1px; text-transform:uppercase;">${configLoja.nome || 'PDV Mobile'}</h3>
             <p style="margin:5px 0; font-size:0.8rem; color:var(--text-muted);">Comprovante de Venda</p>
         </div>
-        
         <div style="border-bottom:1px dashed var(--border); padding-bottom:10px; margin-bottom:10px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
                 <span style="color:var(--text-muted)">Data:</span><span>${venda.data}</span>
@@ -699,30 +768,25 @@ function verDetalhesVenda(vendaEncoded) {
                 <span style="color:var(--text-muted)">Vendedor:</span><span>${vendedor}</span>
             </div>
         </div>
-
         <p style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">Itens Consumidos</p>
         <div id="listaItensRecibo" style="border-bottom:1px dashed var(--border); padding-bottom:10px; margin-bottom:10px;">
             <div class="loading-placeholder" style="padding:10px;"><div class="spinner" style="width:20px; height:20px; border-width:2px;"></div></div>
         </div>
-
         <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
             <span style="color:var(--text-muted)">Subtotal:</span><span>${fmtMoney(venda.totalBruto || venda.total)}</span>
         </div>
         <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
             <span style="color:var(--text-muted)">Desconto:</span><span style="color:var(--danger)">-${fmtMoney(desconto)}</span>
         </div>
-        
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0; font-size:1.2rem;">
             <span>TOTAL</span><span style="font-weight:800; color:var(--primary);">${fmtMoney(venda.total)}</span>
         </div>
-
         <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
                 <span style="color:var(--text-muted)">Forma Pagamento:</span><span style="font-weight:600;">${venda.pagamento}</span>
             </div>
             ${htmlPagamento}
         </div>
-
         <div style="margin-top:20px; text-align:center;">
             <p style="font-size:0.7rem; color:var(--text-muted);">Obrigado pela preferência!</p>
         </div>
@@ -734,13 +798,13 @@ function verDetalhesVenda(vendaEncoded) {
         const itens = (typeof r === 'string') ? JSON.parse(r) : r;
         const divItens = document.getElementById('listaItensRecibo');
         divItens.innerHTML = '';
-        if(itens.length === 0) { divItens.innerHTML = '<p style="font-size:0.8rem; font-style:italic; text-align:center;">Detalhes indisponíveis para vendas antigas.</p>'; return; }
+        if(itens.length === 0) { divItens.innerHTML = '<p style="font-size:0.8rem; font-style:italic; text-align:center;">Detalhes indisponíveis.</p>'; return; }
         itens.forEach(i => { divItens.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.9rem;"><div style="flex:1;"><div>${i.nome}</div><div style="font-size:0.8rem; color:var(--text-muted);">${i.qtd} x ${fmtMoney(i.preco)}</div></div><div style="font-weight:600;">${fmtMoney(i.subtotal)}</div></div>`; });
     })
     .catch(console.error);
 }
 
-// ... (RESTO DO CÓDIGO PERMANECE IDÊNTICO) ...
+// ... (RESTO DO CÓDIGO - CRUD, ETC) ...
 function carregarUsuarios() { if (!navigator.onLine) return; const lista = document.getElementById('listaUsuarios'); lista.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>'; apiRequest('getUsuariosMobile').then(r => { const users = (typeof r === 'string') ? JSON.parse(r) : r; lista.innerHTML = ''; if(users.length === 0) { lista.innerHTML = '<p style="text-align:center; opacity:0.5;">Nenhum usuário.</p>'; return; } users.forEach(u => { lista.innerHTML += `<div class="list-item" onclick="abrirModalUsuario('${u.id}', '${u.nome}', '${u.login}', '${u.perfil}')"><div class="icon-box"><i class="material-icons-round">person</i></div><div class="info"><strong>${u.nome}</strong><span>${u.perfil} | ${u.login}</span></div><button class="btn-text-danger" onclick="excluirUsuario('${u.id}'); event.stopPropagation();"><i class="material-icons-round">delete</i></button></div>`; }); }).catch(console.error); }
 function abrirModalUsuario(id='', nome='', login='', perfil='Vendedor') { document.getElementById('usuId').value = id; document.getElementById('usuNome').value = nome; document.getElementById('usuLogin').value = login; document.getElementById('usuSenha').value = ''; document.getElementById('usuPerfil').value = perfil; document.getElementById('modalUsuario').style.display = 'flex'; }
 function salvarUsuario(e) { e.preventDefault(); const dados = { id: document.getElementById('usuId').value, nome: document.getElementById('usuNome').value, login: document.getElementById('usuLogin').value, senha: document.getElementById('usuSenha').value, perfil: document.getElementById('usuPerfil').value }; if(!dados.id && !dados.senha) { msgErro("Senha é obrigatória para novo usuário."); return; } const btn = e.target.querySelector('button'); const txt = btn.innerText; btn.innerText = "Salvando..."; btn.disabled = true; apiRequest('salvarUsuarioMobile', dados).then(r => { Swal.fire({icon:'success', title: r, timer: 1500, showConfirmButton:false}); fecharModal('modalUsuario'); carregarUsuarios(); btn.innerText = txt; btn.disabled = false; }).catch(e => { msgErro(e.message); btn.innerText = txt; btn.disabled = false; }); }
