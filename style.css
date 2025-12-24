@@ -255,7 +255,10 @@
   /* CARRINHO */
   .cart-header-mobile { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
   .btn-text-danger { background: none; border: none; color: var(--danger); font-weight: 600; }
-  .cart-item-mobile { display: flex; align-items: center; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 5px; width: 100%; }
+  .cart-item-mobile { display: flex; align-items: center; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 5px; width: 100%; cursor: pointer; transition: background 0.2s;}
+  /* Feedback visual ao clicar no item do carrinho */
+  .cart-item-mobile:active { background-color: rgba(255,255,255,0.05); }
+  
   .ci-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; margin-right: 10px; background: #000; flex-shrink: 0; }
   .ci-info { flex: 1; overflow: hidden; min-width: 0; padding-right: 10px; }
   .ci-name { font-size: 0.9rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-main); }
