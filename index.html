@@ -355,23 +355,38 @@
 
     <!-- === MODAIS === -->
 
-    <!-- Modal Editar Item Carrinho (NOVO) -->
+    <!-- Modal Editar Item Carrinho (ATUALIZADO) -->
     <div id="modalEditarItem" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-header-simple">
-                <h3>Ajustar Preço</h3>
+                <h3>Editar Item</h3>
                 <button onclick="fecharModal('modalEditarItem')" class="btn-close-modal"><i class="material-icons-round">close</i></button>
             </div>
-            <h4 id="editItemNome" style="color:var(--primary); margin:0 0 15px 0;">Nome Produto</h4>
+            <h4 id="editItemNome" style="color:var(--primary); margin:0 0 20px 0; border-bottom:1px solid var(--border); padding-bottom:10px;">Nome Produto</h4>
             <input type="hidden" id="editItemIndex">
             
+            <!-- QUANTIDADE -->
+            <div style="margin-bottom:20px;">
+                <label style="color:var(--text-muted); display:block; margin-bottom:5px;">Quantidade</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button type="button" class="btn-scan" style="width:40px; height:40px; border-radius:12px;" onclick="ajustarQtdEdit(-1)">
+                        <i class="material-icons-round">remove</i>
+                    </button>
+                    <input type="number" id="editItemQtd" style="flex:1; text-align:center; padding:10px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:#fff; font-size:1.2rem; font-weight:bold;" readonly>
+                    <button type="button" class="btn-scan" style="width:40px; height:40px; border-radius:12px;" onclick="ajustarQtdEdit(1)">
+                        <i class="material-icons-round">add</i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PREÇO -->
             <div class="input-material">
                 <i class="material-icons-round">attach_money</i>
-                <label style="margin-left: 40px; margin-top:-5px;">Novo Preço Unitário</label>
+                <label style="margin-left: 40px; margin-top:-5px;">Preço Unitário</label>
                 <input type="number" id="editItemPreco" step="0.01">
             </div>
 
-            <button class="btn-primary-mobile" onclick="salvarEdicaoItem()">ATUALIZAR PREÇO</button>
+            <button class="btn-primary-mobile" onclick="salvarEdicaoItem()">SALVAR ALTERAÇÕES</button>
         </div>
     </div>
 
