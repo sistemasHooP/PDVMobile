@@ -1,9 +1,9 @@
 /**
  * Service Worker - PDV Mobile
- * Versão: v2 (Atualização Obrigatória)
+ * Versão: v4 (Atualização Obrigatória - Edição de Quantidade)
  */
 
-const CACHE_NAME = 'pdv-mobile-v2'; // Mudamos para v2 para forçar atualização
+const CACHE_NAME = 'pdv-mobile-v4'; // Mudamos para v4 para forçar atualização
 const urlsToCache = [
   './',
   './index.html',
@@ -18,38 +18,38 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
 ];
 
-// Instalação: Cache dos arquivos estáticos
+// Instalação: Cache dos ficheiros estáticos
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // Força o SW a ativar imediatamente
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Cache v2 aberto');
+        console.log('Cache v4 aberto');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Ativação: Limpa caches antigos (v1, etc)
+// Ativação: Limpa caches antigos (v1, v2, v3, etc)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Apagando cache antigo:', cacheName);
+            console.log('A apagar cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  return self.clients.claim(); // Assume o controle da página imediatamente
+  return self.clients.claim(); // Assume o controlo da página imediatamente
 });
 
-// Interceptação: Cache First, depois Network (Melhor performance)
+// Interceção: Cache First, depois Network (Melhor performance)
 self.addEventListener('fetch', (event) => {
-  // Não cacheia chamadas para a API do Google Script (sempre online ou tratado no script.js)
+  // Não faz cache de chamadas para a API do Google Script (sempre online ou tratado no script.js)
   if (event.request.url.includes('script.google.com')) {
       return; 
   }
@@ -57,18 +57,18 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Se achou no cache, retorna
+        // Se encontrou no cache, retorna
         if (response) {
           return response;
         }
-        // Se não, busca na rede
+        // Se não, procura na rede
         return fetch(event.request).then(
           (networkResponse) => {
-            // Verifica se a resposta é válida antes de cachear
+            // Verifica se a resposta é válida antes de fazer cache
             if(!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
               return networkResponse;
             }
-            // Clona a resposta para salvar no cache novo dinamicamente
+            // Clona a resposta para guardar no cache novo dinamicamente
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME)
               .then((cache) => {
