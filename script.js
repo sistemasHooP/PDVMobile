@@ -343,7 +343,7 @@ function mudarAba(aba) {
 }
 
 // ======================================================
-// 3. PRODUTOS & CARRINHO (COM DESCONTO UNITÁRIO)
+// 3. PRODUTOS & CARRINHO (COM DESCONTO UNITÁRIO E QUANTIDADE)
 // ======================================================
 function carregarProdutos() {
     const cache = localStorage.getItem(CACHE_PRODS_KEY);
@@ -485,7 +485,7 @@ function atualizarCarrinhoUI() {
         if(badgeNav) badgeNav.style.display = 'none';
     } else {
         carrinho.forEach((item, index) => {
-            // Calcula usando o preçoVenda
+            // Calcula usando o preçoVenda e quantidade
             const subtotal = item.precoVenda * item.qtd;
             total += subtotal; 
             qtdItens += item.qtd;
@@ -527,27 +527,46 @@ function abrirEdicaoItemCarrinho(index) {
     
     editItemIndex = index;
     document.getElementById('editItemNome').innerText = item.nome;
-    document.getElementById('editItemPreco').value = item.precoVenda; // Carrega preço atual
+    document.getElementById('editItemPreco').value = item.precoVenda; 
+    document.getElementById('editItemQtd').value = item.qtd; // Preenche a quantidade atual
     
     const modal = document.getElementById('modalEditarItem');
     modal.style.display = 'flex';
     setTimeout(() => modal.classList.add('active'), 10);
 }
 
+// Função para os botões + e - da quantidade
+function ajustarQtdEdit(delta) {
+    const el = document.getElementById('editItemQtd');
+    let val = parseInt(el.value) || 0;
+    val += delta;
+    if(val < 1) val = 1;
+    el.value = val;
+}
+
 function salvarEdicaoItem() {
     const novoPreco = parseFloat(document.getElementById('editItemPreco').value);
-    
-    if (isNaN(novoPreco) || novoPreco < 0) {
-        msgErro("Preço inválido!");
-        return;
-    }
+    const novaQtd = parseInt(document.getElementById('editItemQtd').value);
+
+    if (isNaN(novoPreco) || novoPreco < 0) { msgErro("Preço inválido!"); return; }
+    if (isNaN(novaQtd) || novaQtd < 1) { msgErro("Quantidade inválida!"); return; }
     
     if (editItemIndex > -1 && carrinho[editItemIndex]) {
-        // Atualiza o preço deste item na memória do carrinho
-        carrinho[editItemIndex].precoVenda = novoPreco;
+        // Verificar estoque antes de aumentar a quantidade
+        const itemCarrinho = carrinho[editItemIndex];
+        const produtoOriginal = dbProdutos.find(p => p.id === itemCarrinho.id);
+        
+        if (produtoOriginal && produtoOriginal.controla && produtoOriginal.estoque < novaQtd) {
+             msgErro(`Estoque insuficiente! Máx: ${produtoOriginal.estoque}`);
+             return;
+        }
+
+        // Atualiza preço e quantidade
+        itemCarrinho.precoVenda = novoPreco;
+        itemCarrinho.qtd = novaQtd;
         
         atualizarCarrinhoUI();
-        msgSucessoToast("Preço atualizado!");
+        msgSucessoToast("Item atualizado!");
         fecharModal('modalEditarItem');
     }
 }
