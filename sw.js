@@ -1,9 +1,9 @@
 /**
  * Service Worker - PDV Mobile
- * Versão: v4 (Atualização Obrigatória - Edição de Quantidade)
+ * Versão: v5 (Atualização Obrigatória - Correção Layout Mobile + Modal Qtd)
  */
 
-const CACHE_NAME = 'pdv-mobile-v4'; // Mudamos para v4 para forçar atualização
+const CACHE_NAME = 'pdv-mobile-v5'; // Mudamos para v5 para forçar atualização
 const urlsToCache = [
   './',
   './index.html',
@@ -24,13 +24,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Cache v4 aberto');
+        console.log('Cache v5 aberto');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Ativação: Limpa caches antigos (v1, v2, v3, etc)
+// Ativação: Limpa caches antigos (v1 a v4)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
